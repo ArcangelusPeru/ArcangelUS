@@ -1,17 +1,16 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
-import path from 'node:path';
 
 export function launchConfig(env=process.env) {
   const hosted=env.SHOP_HOSTED==='1'||Boolean(env.PORT)||env.NODE_ENV==='production';
-  const port=Number(env.PORT||4173);
+  const port=Number(env.PORT||(hosted?3000:4173));
   if(!Number.isInteger(port)||port<1||port>65535)throw Error('PORT debe ser un puerto válido.');
-  return {port,host:hosted?'0.0.0.0':'127.0.0.1',hosted,adminPassword:env.ADMIN_PASSWORD||'',publicOrigin:env.APP_URL||'',dataDir:hosted?path.resolve(env.DATA_DIR||'/public/assets/arcangel-us'):undefined};
+  return {port,host:hosted?'0.0.0.0':'127.0.0.1',hosted,adminPassword:env.ADMIN_PASSWORD||'',publicOrigin:env.APP_URL||'',dataDir:hosted?(env.DATA_DIR||'public/assets/arcangel-us'):undefined};
 }
 
 export function createAdminAccess({hosted=false,adminPassword='',publicOrigin=''}={}) {
   const configured=!hosted||(adminPassword.length>=12&&adminPassword.length<=1024);
   let origin;
-  if(publicOrigin){origin=new URL(publicOrigin);if(!['http:','https:'].includes(origin.protocol)||origin.username||origin.password)throw Error('APP_URL debe ser la URL pública de la tienda.');}
+  if(publicOrigin){try{origin=new URL(publicOrigin);}catch{throw Error('APP_URL no es válida. Usa la URL pública completa o elimina esa variable.');}if(!['http:','https:'].includes(origin.protocol)||origin.username||origin.password)throw Error('APP_URL debe ser la URL pública de la tienda.');}
   const passwordHash=createHash('sha256').update(adminPassword).digest();
   const localToken=randomBytes(32).toString('hex'),sessions=new Map(),attempts=new Map();
   const lifetime=12*60*60*1000;

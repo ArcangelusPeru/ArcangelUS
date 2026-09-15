@@ -1,6 +1,6 @@
 # Arcangel US · Tienda y panel de administración
 
-**Para GoDaddy:** utiliza `arcangel-us-godaddy.zip` y sigue `SUBIR-A-GODADDY.md`. Incluye arranque de producción, acceso con contraseña y guardado en la carpeta persistente del alojamiento.
+**Para GoDaddy:** utiliza `arcangel-us-godaddy-v1.1.1.zip` y sigue `SUBIR-A-GODADDY.md`. Incluye arranque de producción, acceso con contraseña y guardado dentro de `public/assets` del proyecto.
 
 ## Abrir la tienda y el panel
 

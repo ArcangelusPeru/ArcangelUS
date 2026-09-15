@@ -2,7 +2,7 @@
 
 ## Actualizar tu aplicación actual
 
-1. Utiliza **arcangel-us-godaddy.zip**, la versión preparada para GoDaddy. El ZIP anterior era para uso local y superaba el límite del alojamiento.
+1. Utiliza **arcangel-us-godaddy-v1.1.1.zip**, la versión preparada para GoDaddy con el arranque corregido.
 2. En la aplicación **ArcangelUSperu**, pulsa **Update Preview** o **Upload New Code** y selecciona el ZIP corregido. Si GoDaddy solicita una carpeta, descomprímelo y selecciona la carpeta que contiene directamente `package.json`, `server.mjs` e `index.html`.
 3. Deja el entorno en **Node.js 22**. El alojamiento ejecutará `npm install`, `npm run build` y `npm start`; el proyecto incluye esos comandos y no necesita dependencias externas.
 4. En **Manage Secrets**, añade **ADMIN_PASSWORD**. Elige tú una contraseña de al menos **12 caracteres**; esa será la contraseña del panel. No compartas tu contraseña por chat ni la escribas en archivos públicos.
@@ -10,6 +10,8 @@
 6. Abre la URL de vista previa desde tu sesión iniciada de GoDaddy. Para entrar al panel, añade **/admin** a esa misma URL e introduce la contraseña elegida.
 
 Ejemplo: si la tienda abre en `https://tu-app.preview.c37.airoapp.ai/`, el panel está en `https://tu-app.preview.c37.airoapp.ai/admin`.
+
+Si añadiste `DATA_DIR` con el valor `/public/assets/arcangel-us`, cámbialo a **`public/assets/arcangel-us`**, sin la barra inicial, antes de reiniciar. La carpeta se resuelve dentro del proyecto y no en la raíz del sistema. Conserva una ruta absoluta distinta si tu alojamiento te proporcionó expresamente una ubicación persistente y ya guardaste datos allí.
 
 La tienda puede abrir antes de configurar la contraseña, pero el panel permanecerá bloqueado. Al publicar en otro entorno, configura también `ADMIN_PASSWORD` allí. La sesión de administración dura hasta 12 horas y termina al reiniciar el servidor.
 
@@ -19,7 +21,7 @@ La tienda puede abrir antes de configurar la contraseña, pero el panel permanec
 | --- | --- |
 | `PORT` | GoDaddy la proporciona automáticamente. No añadas un puerto fijo. |
 | `ADMIN_PASSWORD` | Contraseña del panel, entre 12 y 1024 caracteres. Obligatoria para administrar por Internet. |
-| `DATA_DIR` | Opcional. Por defecto se usa `/public/assets/arcangel-us`, dentro de la carpeta que GoDaddy indica para archivos persistentes. |
+| `DATA_DIR` | Opcional. Por defecto se usa `public/assets/arcangel-us`, dentro del proyecto. Una ruta relativa se resuelve desde la carpeta de la aplicación; una ruta absoluta solo debe usarse si está provista por el alojamiento. |
 | `APP_URL` | Opcional. Déjala vacía para usar la vista previa y el dominio público. Si la defines, debe ser el origen exacto del entorno, por ejemplo `https://mitienda.com`, sin `/admin`. |
 
 ## Guardado
@@ -36,11 +38,14 @@ Las rutas del catálogo privado y las copias no se publican mediante el servidor
 - **Healthy:** significa que GoDaddy informa un estado saludable del despliegue; no es un mensaje de error.
 - **Configura ADMIN_PASSWORD:** añade ese secreto en el entorno actual y reinicia la aplicación.
 - **Origen no permitido:** si configuraste `APP_URL`, comprueba que coincida con la URL actual o déjala vacía mientras usas la vista previa.
+- **Process exited before becoming ready:** es un aviso genérico de proceso terminado. Abre **Runtime Logs** y busca la causa antes de la línea que muestra la versión de Node.js. Con esta versión, los fallos de inicio comienzan con `[STARTUP_ERROR]`; el inicio correcto muestra `[READY]`.
+- Si GoDaddy permite configurar el comando de inicio, usa **`npm start`** (equivale a `node start.cjs`).
 - Para otros errores, abre **Runtime Logs**. El servidor debe informar que escucha en `0.0.0.0` y en el puerto asignado por GoDaddy.
 
 ## Cambios de esta versión
 
-- `package.json` y scripts de inicio y validación en la raíz del ZIP.
+- `package.json`, `start.cjs` y scripts de inicio y validación en la raíz del ZIP. El lanzador inicia siempre el servidor y muestra errores de arranque concretos.
+- La carpeta de datos predeterminada está dentro de `public/assets` del proyecto; no intenta crear una carpeta en la raíz del sistema.
 - Puerto definido por el alojamiento y escucha en `0.0.0.0`.
 - Acceso con contraseña al panel, sesiones y cierre de sesión.
 - Guardado independiente de los archivos de código que se sustituyen al desplegar.

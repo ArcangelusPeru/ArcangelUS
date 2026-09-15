@@ -100,18 +100,22 @@ async function body(req,limit){
 }
 export async function createShopServer({root=path.dirname(fileURLToPath(import.meta.url)),hosted=false,adminPassword='',publicOrigin='',dataDir}={}){
   root=path.resolve(root);
-  const storageRoot=hosted?path.resolve(dataDir||path.join(root,'public/assets/arcangel-us')):root;
+  const storageRoot=hosted?path.resolve(root,dataDir||'public/assets/arcangel-us'):root;
   const catalogFile=path.join(storageRoot,hosted?'catalog.json':'js/catalog.js');
   const backups=path.join(storageRoot,'.backups'),uploadDir=path.join(storageRoot,'uploads');
   const access=createAdminAccess({hosted,adminPassword,publicOrigin});
   const serialize=value=>hosted?jsonText(value):script(value);
   let state,newStore=false;
   try{const source=await fs.readFile(catalogFile,'utf8');state=hosted?JSON.parse(source):parseCatalog(source);}
-  catch(e){if(!hosted||e.code!=='ENOENT')throw e;state=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));newStore=true;}
+  catch(e){if(!hosted||e.code!=='ENOENT'){if(e.code)e.message=`No se puede leer el catálogo en DATA_DIR (${e.code}). Comprueba los permisos de la carpeta. `+e.message;throw e;}state=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));newStore=true;}
   const needsInit=!state.settings||!state.revision;
   state.settings={...DEFAULT_SETTINGS,...state.settings};state.revision=Number(state.revision)||1;
   state.categories=state.categories.map(c=>({...c,image_url:c.image_url||fallbackImages[c.slug]||'logo/todos.png'}));
-  if(needsInit||newStore){state={...validateState(state),revision:state.revision};await fs.mkdir(backups,{recursive:true});if(!newStore)await fs.copyFile(catalogFile,path.join(backups,'catalog-before-admin-'+Date.now()+(hosted?'.json':'.js')));await atomicWrite(catalogFile,serialize(state));}
+  if(needsInit||newStore){
+    state={...validateState(state),revision:state.revision};
+    try{await fs.mkdir(backups,{recursive:true});if(!newStore)await fs.copyFile(catalogFile,path.join(backups,'catalog-before-admin-'+Date.now()+(hosted?'.json':'.js')));await atomicWrite(catalogFile,serialize(state));}
+    catch(e){e.message=`No se puede inicializar DATA_DIR (${e.code||'error'}). Usa public/assets/arcangel-us, sin barra inicial, dentro del proyecto. `+e.message;throw e;}
+  }
   let queue=Promise.resolve();
   const serialized=fn=>{const next=queue.then(fn);queue=next.catch(()=>{});return next;};
   const server=http.createServer(async(req,res)=>{
@@ -181,11 +185,19 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   });
   return server;
 }
-if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
-  const config=launchConfig(),server=await createShopServer(config);
-  server.listen(config.port,config.host,()=>{
-    console.log(config.hosted?`Arcangel US escuchando en 0.0.0.0:${config.port}`:`Tienda: http://127.0.0.1:${config.port}/\nPanel: http://127.0.0.1:${config.port}/admin`);
-    if(config.hosted&&!createAdminAccess(config).configured)console.log('La tienda está disponible. Configura ADMIN_PASSWORD (mínimo 12 caracteres) para habilitar el panel.');
+export async function startShopServer(config=launchConfig()){
+  const server=await createShopServer(config);
+  await new Promise((resolve,reject)=>{
+    server.once('error',reject);
+    server.listen(config.port,config.host,()=>{server.removeListener('error',reject);resolve();});
   });
-  server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`La tienda ya está abierta en el puerto ${config.port}.`:e.message);process.exitCode=1;});
+  console.log(config.hosted?`[READY] Arcangel US escuchando en 0.0.0.0:${config.port}`:`Tienda: http://127.0.0.1:${config.port}/\nPanel: http://127.0.0.1:${config.port}/admin`);
+  if(config.hosted&&!createAdminAccess(config).configured)console.log('La tienda está disponible. Configura ADMIN_PASSWORD (mínimo 12 caracteres) para habilitar el panel.');
+  return server;
+}
+
+// Keep direct `node server.mjs` launches working for existing hosting settings.
+const canonical=async file=>fs.realpath(file).catch(()=>path.resolve(file));
+if(process.argv[1]&&await canonical(process.argv[1])===await canonical(fileURLToPath(import.meta.url))){
+  startShopServer().catch(error=>{console.error(`[STARTUP_ERROR] ${error.code||error.name}: ${error.message}`);process.exitCode=1;});
 }

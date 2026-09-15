@@ -1,13 +1,13 @@
 {
   "name": "arcangel-us-tienda",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
-  "main": "server.mjs",
+  "main": "start.cjs",
   "engines": { "node": ">=20" },
   "scripts": {
-    "build": "node --check server.mjs && node --check hosting.mjs && node --check admin/admin.js && node --check js/index.js",
-    "start": "node server.mjs"
+    "build": "node --check start.cjs && node --check server.mjs && node --check hosting.mjs && node --check admin/admin.js && node --check js/index.js",
+    "start": "node start.cjs"
   },
   "dependencies": {}
 }
