@@ -2,7 +2,8 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
+import { createAdminAccess, launchConfig } from './hosting.mjs';
 
 export const DEFAULT_SETTINGS = {
   name:'Arcangel US', logo:'logo/arcangel-us.png', header_logo:'logo/arcangel-us.png', footer_logo:'logo/arcangel-us.png',
@@ -97,14 +98,21 @@ async function body(req,limit){
   for await(const chunk of req){size+=chunk.length;if(size>limit)throw fail(413,'El archivo es demasiado grande.');chunks.push(chunk);}
   return Buffer.concat(chunks);
 }
-export async function createShopServer({root=path.dirname(fileURLToPath(import.meta.url))}={}){
-  root=path.resolve(root);const catalogFile=path.join(root,'js/catalog.js');
-  let state=parseCatalog(await fs.readFile(catalogFile,'utf8'));
+export async function createShopServer({root=path.dirname(fileURLToPath(import.meta.url)),hosted=false,adminPassword='',publicOrigin='',dataDir}={}){
+  root=path.resolve(root);
+  const storageRoot=hosted?path.resolve(dataDir||path.join(root,'public/assets/arcangel-us')):root;
+  const catalogFile=path.join(storageRoot,hosted?'catalog.json':'js/catalog.js');
+  const backups=path.join(storageRoot,'.backups'),uploadDir=path.join(storageRoot,'uploads');
+  const access=createAdminAccess({hosted,adminPassword,publicOrigin});
+  const serialize=value=>hosted?jsonText(value):script(value);
+  let state,newStore=false;
+  try{const source=await fs.readFile(catalogFile,'utf8');state=hosted?JSON.parse(source):parseCatalog(source);}
+  catch(e){if(!hosted||e.code!=='ENOENT')throw e;state=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));newStore=true;}
   const needsInit=!state.settings||!state.revision;
   state.settings={...DEFAULT_SETTINGS,...state.settings};state.revision=Number(state.revision)||1;
   state.categories=state.categories.map(c=>({...c,image_url:c.image_url||fallbackImages[c.slug]||'logo/todos.png'}));
-  if(needsInit){state={...validateState(state),revision:state.revision};await fs.mkdir(path.join(root,'.backups'),{recursive:true});await fs.copyFile(catalogFile,path.join(root,'.backups','catalog-before-admin-'+Date.now()+'.js'));await atomicWrite(catalogFile,script(state));}
-  const token=randomBytes(32).toString('hex');let queue=Promise.resolve();
+  if(needsInit||newStore){state={...validateState(state),revision:state.revision};await fs.mkdir(backups,{recursive:true});if(!newStore)await fs.copyFile(catalogFile,path.join(backups,'catalog-before-admin-'+Date.now()+(hosted?'.json':'.js')));await atomicWrite(catalogFile,serialize(state));}
+  let queue=Promise.resolve();
   const serialized=fn=>{const next=queue.then(fn);queue=next.catch(()=>{});return next;};
   const server=http.createServer(async(req,res)=>{
     const send=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));};
@@ -112,20 +120,27 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
     try{
       const actualPort=server.address()?.port;
       const host=req.headers.host;
-      if(![`127.0.0.1:${actualPort}`,`localhost:${actualPort}`].includes(host))throw fail(403,'Este panel solo admite acceso local.');
-      const url=new URL(req.url,`http://${host}`);
+      if(!hosted&&![`127.0.0.1:${actualPort}`,`localhost:${actualPort}`].includes(host))throw fail(403,'Este panel solo admite acceso local.');
+      const url=new URL(req.url,'http://app.invalid');
+      if(url.pathname==='/healthz')return send(200,{status:'ok'});
       if(url.pathname.startsWith('/api/')){
-        if(req.headers.origin&&req.headers.origin!==`http://${host}`)throw fail(403,'Origen no permitido.');
+        if(req.headers.origin&&!access.sameOrigin(req))throw fail(403,'Origen no permitido.');
         if(req.method==='GET'&&url.pathname==='/api/catalog')return send(200,publicState(state));
-        if(req.method==='GET'&&url.pathname==='/api/admin/state')return send(200,{...state,token});
+        if(req.method==='GET'&&url.pathname==='/api/admin/session')return send(200,access.status(req));
+        if(req.method==='POST'&&url.pathname==='/api/admin/login'){
+          if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'Formato no válido.');
+          let input;try{input=JSON.parse((await body(req,4096)).toString());}catch(e){if(e.status)throw e;throw fail(400,'Datos de acceso no válidos.');}
+          return send(200,access.login(req,res,input.password));
+        }
+        if(req.method==='POST'&&url.pathname==='/api/admin/logout')return send(200,access.logout(req,res));
+        if(req.method==='GET'&&url.pathname==='/api/admin/state')return send(200,{...state,token:access.require(req).token});
         if(!['PUT','POST'].includes(req.method))throw fail(405,'Método no permitido.');
-        const provided=Buffer.from(req.headers['x-admin-token']||'');const expected=Buffer.from(token);
-        if(req.headers.origin!==`http://${host}`||provided.length!==expected.length||!timingSafeEqual(provided,expected))throw fail(403,'Vuelve a abrir el panel para guardar.');
+        const {token}=access.checkWrite(req);
         if(req.method==='POST'&&url.pathname==='/api/admin/upload'){
           const bytes=await body(req,12*1024*1024);const type=detectImage(bytes);
           if(!type||req.headers['content-type']!==type[1])throw fail(400,'Sube una imagen PNG, JPG, WebP o GIF válida.');
           const relative=`uploads/${randomUUID()}.${type[0]}`;
-          await fs.mkdir(path.join(root,'uploads'),{recursive:true});await fs.writeFile(path.join(root,relative),bytes,{flag:'wx'});
+          await fs.mkdir(uploadDir,{recursive:true});await fs.writeFile(path.join(uploadDir,path.basename(relative)),bytes,{flag:'wx'});
           return send(201,{url:relative});
         }
         if(req.method==='PUT'&&url.pathname==='/api/admin/state'){
@@ -134,9 +149,9 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
           const result=await serialized(async()=>{
             if(input.revision!==state.revision)throw fail(409,'La tienda cambió en otra pestaña. Recarga el panel antes de volver a guardar.');
             const next={...validateState(input),revision:state.revision+1};
-            await fs.mkdir(path.join(root,'.backups'),{recursive:true});
-            await fs.writeFile(path.join(root,'.backups',`revision-${state.revision}-${Date.now()}.json`),jsonText(state));
-            await atomicWrite(catalogFile,script(next));state=next;
+            await fs.mkdir(backups,{recursive:true});
+            await fs.writeFile(path.join(backups,`revision-${state.revision}-${Date.now()}.json`),jsonText(state));
+            await atomicWrite(catalogFile,serialize(next));state=next;
             return {...state,token};
           });
           return send(200,result);
@@ -145,22 +160,32 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       }
       if(!['GET','HEAD'].includes(req.method))throw fail(405,'Método no permitido.');
       let relative=decodeURIComponent(url.pathname).replace(/^\//,'');
+      if(relative.split(/[\\/]/).some(part=>part==='.'||part==='..'||part.startsWith('.')))throw fail(404,'No encontrado.');
       if(!relative)relative='index.html';
       if(relative==='admin'||relative==='admin/')relative='admin/index.html';
       if(relative==='js/catalog.js'){
         res.writeHead(200,{'Content-Type':MIME['.js']});return res.end(req.method==='HEAD'?undefined:script(publicState(state)));
       }
       if(relative!=='index.html'&&!/^(admin|css|js|assets|banners|logo|uploads)\//.test(relative))throw fail(404,'No encontrado.');
-      const file=path.resolve(root,relative),ext=path.extname(file).toLowerCase();
+      const file=path.resolve(root,relative);let ext=path.extname(file).toLowerCase();
       if(!file.startsWith(root+path.sep)||!MIME[ext])throw fail(404,'No encontrado.');
-      const bytes=await fs.readFile(file).catch(()=>{throw fail(404,'No encontrado.');});
+      let bytes;
+      if(hosted&&/^uploads\/[\w-]+\.(png|jpe?g|webp|gif)$/i.test(relative))bytes=await fs.readFile(path.join(uploadDir,path.basename(relative))).catch(()=>null);
+      if(!bytes)try{bytes=await fs.readFile(file);}catch{
+        // Deployment images may be losslessly encoded as WebP; old catalog references still work.
+        if(ext==='.png')try{bytes=await fs.readFile(file.slice(0,-4)+'.webp');ext='.webp';}catch{}
+        if(!bytes)throw fail(404,'No encontrado.');
+      }
       res.writeHead(200,{'Content-Type':MIME[ext]});res.end(req.method==='HEAD'?undefined:bytes);
     }catch(e){if(!res.headersSent)send(e.status||500,{error:e.status?e.message:'No se pudo guardar o leer el archivo. Inténtalo de nuevo.'});else res.end();if(!e.status)console.error(e.message);}
   });
   return server;
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
-  const server=await createShopServer();
-  server.listen(4173,'127.0.0.1',()=>console.log('Tienda: http://127.0.0.1:4173/\nPanel: http://127.0.0.1:4173/admin'));
-  server.on('error',e=>{console.error(e.code==='EADDRINUSE'?'La tienda ya está abierta en el puerto 4173.':e.message);process.exitCode=1;});
+  const config=launchConfig(),server=await createShopServer(config);
+  server.listen(config.port,config.host,()=>{
+    console.log(config.hosted?`Arcangel US escuchando en 0.0.0.0:${config.port}`:`Tienda: http://127.0.0.1:${config.port}/\nPanel: http://127.0.0.1:${config.port}/admin`);
+    if(config.hosted&&!createAdminAccess(config).configured)console.log('La tienda está disponible. Configura ADMIN_PASSWORD (mínimo 12 caracteres) para habilitar el panel.');
+  });
+  server.on('error',e=>{console.error(e.code==='EADDRINUSE'?`La tienda ya está abierta en el puerto ${config.port}.`:e.message);process.exitCode=1;});
 }
