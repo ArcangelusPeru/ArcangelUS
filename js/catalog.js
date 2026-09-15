@@ -3,7 +3,7 @@ const CATALOG = {
     {
       "id": "1",
       "filter": "streaming",
-      "name": "Netflix Premium",
+      "name": "Net Caarasco",
       "brand": "Netflix",
       "sub": "1 mes - Perfil",
       "description": "",
@@ -1494,5 +1494,5 @@ const CATALOG = {
     "wave_secondary": "#f87171",
     "wave_teal": "#2dd4bf"
   },
-  "revision": 5
+  "revision": 6
 };
