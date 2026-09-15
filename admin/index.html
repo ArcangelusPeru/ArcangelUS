@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Administración · Arcangel US</title><link rel="icon" href="/logo/arcangel-us.png"><link rel="stylesheet" href="/css/fonts.css"><link rel="stylesheet" href="/admin/admin.css"><script src="/admin/admin.js" defer></script></head>
+<body>
+<div class="admin-shell">
+  <aside class="sidebar">
+    <a class="admin-brand" href="/"><img src="/logo/arcangel-us.png" alt="" id="adminLogo"><span><strong id="adminName">Arcangel US</strong><small>Administración</small></span></a>
+    <div class="nav-label">TU TIENDA</div>
+    <nav aria-label="Administración">
+      <button data-view="products" class="nav-button active"><span aria-hidden="true">▦</span>Productos <small id="navCount"></small></button>
+      <button data-view="categories" class="nav-button"><span aria-hidden="true">▤</span>Categorías</button>
+      <button data-view="settings" class="nav-button"><span aria-hidden="true">⚙</span>Configurar web</button>
+    </nav>
+    <div class="sidebar-bottom"><span class="local-label">En este equipo</span><a class="view-store" href="/" target="_blank" rel="noopener">Ver mi tienda <span aria-hidden="true">↗</span></a></div>
+  </aside>
+  <main class="workspace">
+    <header class="page-header"><div><p class="eyebrow">PANEL DE CONTROL</p><h1 id="pageTitle">Productos</h1><p id="pageIntro">Administra tu catálogo, sus precios y su disponibilidad.</p></div><div id="pageAction"></div></header>
+    <div id="connectionError" role="alert" hidden></div>
+    <div id="mainContent"><div class="loading">Cargando tu tienda…</div></div>
+  </main>
+</div>
+<dialog id="editor" aria-labelledby="editorTitle"><form id="editorForm"><header class="editor-header"><div><p class="eyebrow" id="editorEyebrow">CATÁLOGO</p><h2 id="editorTitle">Editar producto</h2></div><button class="icon-button" type="button" id="closeEditor" aria-label="Cerrar editor">✕</button></header><div id="editorFields" class="editor-fields"></div><footer class="editor-footer"><p id="editorError" role="alert"></p><div class="editor-actions"><button class="button danger ghost" id="deleteItem" type="button">Eliminar</button><span class="spacer"></span><button class="button secondary" type="button" id="cancelEditor">Cancelar</button><button class="button primary" type="submit" id="saveItem">Guardar cambios</button></div></footer></form></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
+</body></html>
