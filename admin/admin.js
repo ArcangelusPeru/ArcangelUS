@@ -11,8 +11,8 @@
   function toast(message,error=false){const el=$('#toast');el.textContent=message;el.classList.toggle('error',error);el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,error?9000:4500);}
   async function api(url,options={}){
     const response=await fetch(url,{...options,headers:{'X-Admin-Token':token||'',...options.headers},cache:'no-store'});
-    let result;try{result=await response.json();}catch{throw Error('El panel necesita el servidor de la tienda. Abre INICIAR-TIENDA.cmd.');}
-    if(!response.ok)throw Error(result.error||'No se pudo completar la operación.');return result;
+    let result;try{result=await response.json();}catch{throw Error('El servidor no respondió como se esperaba. En GoDaddy revisa el despliegue; en este equipo abre INICIAR-TIENDA.cmd.');}
+    if(!response.ok)throw Object.assign(Error(result.error||'No se pudo completar la operación.'),{status:response.status});return result;
   }
   function installState(data){token=data.token||token;state={products:data.products,categories:data.categories,settings:data.settings,revision:data.revision};$('#adminName').textContent=state.settings.name;$('#adminLogo').src=asset(state.settings.logo);$('#navCount').textContent=state.products.length;document.title='Administración · '+state.settings.name;}
   async function save(next){
@@ -112,5 +112,24 @@
   };
   $$('.nav-button').forEach(b=>b.addEventListener('click',()=>{if(saving)return;if(pendingUploads){toast('Espera a que termine la subida de imágenes.',true);return;}if(dirty&&!confirm('¿Descartar los cambios sin guardar?'))return;dirty=false;view=b.dataset.view;render();}));
   window.addEventListener('beforeunload',e=>{if(dirty){e.preventDefault();e.returnValue='';}});
-  api('/api/admin/state').then(data=>{installState(data);render();}).catch(e=>{const box=$('#connectionError');box.textContent=e.message+' Abre INICIAR-TIENDA.cmd y vuelve a cargar esta página.';box.hidden=false;$('#mainContent').innerHTML='';});
+  function showLogin(configured=true){
+    $('.admin-shell').hidden=true;$('#loginScreen').hidden=false;$('#passwordField').hidden=!configured;$('#loginButton').hidden=!configured;
+    $('#loginIntro').textContent=configured?'Introduce tu contraseña para administrar los productos y la web.':'Para activar el panel, añade ADMIN_PASSWORD en Manage Secrets de GoDaddy con una contraseña de al menos 12 caracteres y reinicia la aplicación.';
+    $('#loginError').textContent='';
+  }
+  async function boot(){
+    const session=await api('/api/admin/session');
+    if(session.hosted&&!session.authenticated){showLogin(session.configured);return;}
+    installState(await api('/api/admin/state'));$('.admin-shell').hidden=false;$('#loginScreen').hidden=true;$('#logoutButton').hidden=!session.hosted;$('#accessLabel').textContent=session.hosted?'Sesión protegida':'En este equipo';render();
+  }
+  $('#loginForm').addEventListener('submit',async e=>{
+    e.preventDefault();$('#loginButton').disabled=true;$('#loginError').textContent='';
+    try{await api('/api/admin/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:$('#adminPassword').value})});$('#adminPassword').value='';await boot();}
+    catch(err){$('#loginError').textContent=err.message;}finally{$('#loginButton').disabled=false;}
+  });
+  $('#logoutButton').addEventListener('click',async()=>{
+    if(saving||pendingUploads)return;if(dirty&&!confirm('¿Descartar los cambios sin guardar y cerrar sesión?'))return;
+    try{await api('/api/admin/logout',{method:'POST'});dirty=false;token='';state=null;$('#mainContent').innerHTML='';showLogin();}catch(err){toast(err.message,true);}
+  });
+  boot().catch(e=>{if(e.status===401){showLogin();return;}const box=$('#connectionError');box.textContent=e.message;box.hidden=false;$('#mainContent').innerHTML='';});
 })();
