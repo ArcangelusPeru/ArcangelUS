@@ -1,10 +1,11 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { databaseConfig } from './mysql-store.mjs';
 
 export function launchConfig(env=process.env) {
   const hosted=env.SHOP_HOSTED==='1'||Boolean(env.PORT)||env.NODE_ENV==='production';
   const port=Number(env.PORT||(hosted?3000:4173));
   if(!Number.isInteger(port)||port<1||port>65535)throw Error('PORT debe ser un puerto válido.');
-  return {port,host:hosted?'0.0.0.0':'127.0.0.1',hosted,adminPassword:env.ADMIN_PASSWORD||'',publicOrigin:env.APP_URL||'',dataDir:hosted?(env.DATA_DIR||'public/assets/arcangel-us'):undefined};
+  return {port,host:hosted?'0.0.0.0':'127.0.0.1',hosted,adminPassword:env.ADMIN_PASSWORD||'',publicOrigin:env.APP_URL||'',dataDir:hosted?(env.DATA_DIR||'public/assets/arcangel-us'):undefined,database:hosted?databaseConfig(env):null,catalogId:env.SHOP_CATALOG_ID||''};
 }
 
 export function createAdminAccess({hosted=false,adminPassword='',publicOrigin=''}={}) {

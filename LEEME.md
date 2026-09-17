@@ -1,6 +1,6 @@
 # Arcangel US · Tienda y panel de administración
 
-**Para GoDaddy:** utiliza `arcangel-us-godaddy-v1.1.1.zip` y sigue `SUBIR-A-GODADDY.md`. Incluye arranque de producción, acceso con contraseña y guardado dentro de `public/assets` del proyecto.
+**Para GoDaddy:** utiliza `arcangel-us-godaddy-v1.2.0.zip` y sigue `SUBIR-A-GODADDY.md`. Incluye guardado en MySQL de productos e imágenes, respaldos descargables y catálogos separados para pruebas y publicado. Requiere configurar la base antes de desplegar.
 
 ## Abrir la tienda y el panel
 
@@ -55,3 +55,4 @@ Si abres varios paneles a la vez, se detectan los cambios de otra pestaña para 
 En este equipo, abre `INICIAR-TIENDA.cmd` para ver y editar la tienda. Para usarla en Internet, el proyecto también admite GoDaddy Node.js Hosting; sigue `SUBIR-A-GODADDY.md`. El panel remoto requiere una contraseña configurada en el alojamiento. Los archivos codificados como WebP en el paquete para GoDaddy se sirven desde Node.js, conservando las rutas de imágenes anteriores.
 
 El diseño y los 53 productos iniciales proceden de la copia de la web pública https://cuentas.codeghy.com/ del 15 de septiembre de 2026. El catálogo es independiente y no se sincroniza con la tienda original. Las compras se coordinan mediante enlaces de WhatsApp.
+

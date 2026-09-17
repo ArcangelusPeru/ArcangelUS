@@ -1,57 +1,74 @@
-# Subir Arcangel US a GoDaddy Node.js Hosting
+# Arcangel US 1.2.0 · MySQL en GoDaddy
 
-## Actualizar tu aplicación actual
+## Qué corrige
 
-1. Utiliza **arcangel-us-godaddy-v1.1.1.zip**, la versión preparada para GoDaddy con el arranque corregido.
-2. En la aplicación **ArcangelUSperu**, pulsa **Update Preview** o **Upload New Code** y selecciona el ZIP corregido. Si GoDaddy solicita una carpeta, descomprímelo y selecciona la carpeta que contiene directamente `package.json`, `server.mjs` e `index.html`.
-3. Deja el entorno en **Node.js 22**. El alojamiento ejecutará `npm install`, `npm run build` y `npm start`; el proyecto incluye esos comandos y no necesita dependencias externas.
-4. En **Manage Secrets**, añade **ADMIN_PASSWORD**. Elige tú una contraseña de al menos **12 caracteres**; esa será la contraseña del panel. No compartas tu contraseña por chat ni la escribas en archivos públicos.
-5. Reinicia con **Restart Preview App** después de guardar el secreto.
-6. Abre la URL de vista previa desde tu sesión iniciada de GoDaddy. Para entrar al panel, añade **/admin** a esa misma URL e introduce la contraseña elegida.
+GoDaddy confirmó que el disco de la aplicación es temporal y se reconstruye al publicar. Esta versión guarda productos, categorías, configuración, stock e imágenes subidas en la base MySQL de la cuenta. No utiliza DATA_DIR para nuevos guardados remotos.
 
-Ejemplo: si la tienda abre en `https://tu-app.preview.c37.airoapp.ai/`, el panel está en `https://tu-app.preview.c37.airoapp.ai/admin`.
+No se han recuperado los cambios que desaparecieron. Una base nueva no contiene los archivos de la versión anterior. Si soporte encuentra una copia de catalog.json y uploads, consérvala para convertirla/importarla antes de volver a publicar.
 
-Si añadiste `DATA_DIR` con el valor `/public/assets/arcangel-us`, cámbialo a **`public/assets/arcangel-us`**, sin la barra inicial, antes de reiniciar. La carpeta se resuelve dentro del proyecto y no en la raíz del sistema. Conserva una ruta absoluta distinta si tu alojamiento te proporcionó expresamente una ubicación persistente y ya guardaste datos allí.
+## 1. Comprobar la conexión antes de subir el código
 
-La tienda puede abrir antes de configurar la contraseña, pero el panel permanecerá bloqueado. Al publicar en otro entorno, configura también `ADMIN_PASSWORD` allí. La sesión de administración dura hasta 12 horas y termina al reiniciar el servidor.
+La guía de la base de datos de esta aplicación, compartida el 17 de septiembre de 2026, confirma que GoDaddy configura automáticamente DB_HOST, DB_PORT, DB_NAME, DB_USER y DB_PASSWORD al adjuntar la base. Aparecen en Configuración → Secretos y la aplicación los lee directamente. No los vuelvas a crear, no los reemplaces por valores vacíos y no subas un archivo .env con credenciales. No hace falta copiar el ejemplo de conexión ni ejecutar npm install manualmente: esta actualización incluye mysql2 en package.json y package-lock.json.
 
-## Variables del alojamiento
+Conserva ADMIN_PASSWORD y configura únicamente el nuevo SHOP_CATALOG_ID con un valor distinto en cada entorno, como se indica abajo. Si la pantalla no permite distinguir Vista previa de Publicado, comprueba cómo asignar secretos por entorno antes de guardar; no establezcas un identificador compartido. El ejemplo de conexión mostrado no incluye SSL: esta versión coincide con ese ejemplo y no activa DB_SSL por defecto.
 
-| Variable | Configuración |
+| Variable | Valor |
 | --- | --- |
-| `PORT` | GoDaddy la proporciona automáticamente. No añadas un puerto fijo. |
-| `ADMIN_PASSWORD` | Contraseña del panel, entre 12 y 1024 caracteres. Obligatoria para administrar por Internet. |
-| `DATA_DIR` | Opcional. Por defecto se usa `public/assets/arcangel-us`, dentro del proyecto. Una ruta relativa se resuelve desde la carpeta de la aplicación; una ruta absoluta solo debe usarse si está provista por el alojamiento. |
-| `APP_URL` | Opcional. Déjala vacía para usar la vista previa y el dominio público. Si la defines, debe ser el origen exacto del entorno, por ejemplo `https://mitienda.com`, sin `/admin`. |
+| DB_HOST | Servidor MySQL proporcionado por GoDaddy. |
+| DB_PORT | Puerto MySQL de la guía; si se omite se usa 3306. |
+| DB_NAME | Nombre de la base proporcionada por GoDaddy. |
+| DB_USER | Usuario de esa base. |
+| DB_PASSWORD | Contraseña de esa base. |
+| ADMIN_PASSWORD | Conserva tu contraseña del panel (mínimo 12 caracteres). |
+| SHOP_CATALOG_ID | `pruebas` en Vista previa y `publicado` en Publicado. |
+| PORT | Lo proporciona GoDaddy; no fijarlo manualmente. |
+| APP_URL | Opcional: origen exacto del entorno, sin /admin. |
+| DB_SSL | Solo si la guía exige TLS, usar `true`. Si entrega una CA, usar DB_SSL_CA. Se verifica el certificado. |
 
-## Guardado
+La pantalla de GoDaddy indica que Vista previa y Publicado comparten base. SHOP_CATALOG_ID separa los registros e imágenes dentro de esa base: usa valores distintos por entorno. Cambiar el identificador abre otro catálogo; no mueve ni borra el anterior. Publicar código no copia los productos de `pruebas` a `publicado`.
 
-En GoDaddy, los cambios se guardan en `DATA_DIR/catalog.json`, las imágenes nuevas en `DATA_DIR/uploads` y las copias anteriores en `DATA_DIR/.backups`.
+Esta versión requiere la base y el identificador antes de arrancar. Si falta la conexión o hay un error, informa del fallo: no vuelve a guardar en el disco temporal ni restaura productos originales por su cuenta.
 
-En el primer arranque se importa el catálogo incluido en el ZIP. En los siguientes arranques se conserva el catálogo guardado, aunque subas una nueva versión del código. No reemplaces ni borres esa carpeta al actualizar la aplicación. Para respaldarla, utiliza el administrador de archivos del alojamiento.
+## 2. Actualizar el código
 
-Las rutas del catálogo privado y las copias no se publican mediante el servidor. Las imágenes de productos sí son públicas para que puedan mostrarse en la tienda. El control de stock sigue siendo manual después de cada venta por WhatsApp.
+Si usas GitHub, conserva el proyecto y sustituye los archivos de código por los de la carpeta del paquete. Añade los archivos nuevos mysql-store.mjs, backup.mjs y .npmrc. Deben actualizarse juntos server.mjs, hosting.mjs, start.cjs, package.json, package-lock.json, admin/index.html, admin/admin.js y admin/admin.css. También se incluye un ZIP pequeño con esos archivos: arcangel-us-actualizacion-mysql-v1.2.0.zip. Descomprímelo para actualizar el repositorio; no es una aplicación completa para subir como proyecto nuevo.
 
-## Si la vista previa no abre
+Si cargas una aplicación completa, utiliza arcangel-us-godaddy-v1.2.0.zip. No subas node_modules ni archivos .env. La raíz debe contener package.json.
 
-- **This preview is private / Share link required:** necesitas abrirla desde tu sesión de GoDaddy o utilizar su enlace para compartir. Ese mensaje lo muestra GoDaddy antes de llegar a la tienda.
-- **Healthy:** significa que GoDaddy informa un estado saludable del despliegue; no es un mensaje de error.
-- **Configura ADMIN_PASSWORD:** añade ese secreto en el entorno actual y reinicia la aplicación.
-- **Origen no permitido:** si configuraste `APP_URL`, comprueba que coincida con la URL actual o déjala vacía mientras usas la vista previa.
-- **Process exited before becoming ready:** es un aviso genérico de proceso terminado. Abre **Runtime Logs** y busca la causa antes de la línea que muestra la versión de Node.js. Con esta versión, los fallos de inicio comienzan con `[STARTUP_ERROR]`; el inicio correcto muestra `[READY]`.
-- Si GoDaddy permite configurar el comando de inicio, usa **`npm start`** (equivale a `node start.cjs`).
-- Para otros errores, abre **Runtime Logs**. El servidor debe informar que escucha en `0.0.0.0` y en el puerto asignado por GoDaddy.
+Mantén Node.js 22. Comandos: `npm run build` y `npm start`. También se admite `npm run dev`, con el mismo servidor protegido. GoDaddy instala mysql2 desde package-lock.json.
 
-## Cambios de esta versión
+Prueba primero Vista previa. Solo publica cuando la conexión y el guardado se hayan comprobado allí y hayas preservado cualquier copia recuperable de la versión anterior.
 
-- `package.json`, `start.cjs` y scripts de inicio y validación en la raíz del ZIP. El lanzador inicia siempre el servidor y muestra errores de arranque concretos.
-- La carpeta de datos predeterminada está dentro de `public/assets` del proyecto; no intenta crear una carpeta en la raíz del sistema.
-- Puerto definido por el alojamiento y escucha en `0.0.0.0`.
-- Acceso con contraseña al panel, sesiones y cierre de sesión.
-- Guardado independiente de los archivos de código que se sustituyen al desplegar.
-- Imágenes codificadas en WebP sin pérdida, conservando los píxeles y la transparencia, para cumplir el límite de tamaño del ZIP. Las rutas antiguas PNG siguen funcionando mediante el servidor.
-- Se conserva el catálogo, las categorías, el logo y el diseño.
+## 3. Iniciar o importar el catálogo
 
-Referencia: [Requisitos oficiales de GoDaddy Node.js Hosting](https://www.godaddy.com/es/help/upload-my-ai-generated-app-to-godaddy-nodejs-hosting-42987).
+Entra a /admin. Una base o identificador sin catálogo muestra Configurar catálogo y ofrece:
 
-El paquete se ha probado localmente simulando el alojamiento. Debes comprobar la vista previa de tu cuenta después de subirlo; esta entrega no publica ni cambia tu dominio.
+- Restaurar un respaldo .jsonl.gz descargado desde esta nueva versión.
+- Importar el catálogo anterior de esta instancia, únicamente si sigue existiendo catalog.json en DATA_DIR con sus imágenes. No puede recuperar archivos destruidos por un despliegue.
+- Usar catálogo inicial del paquete, mediante confirmación explícita. Son los productos originales, no los cambios perdidos.
+
+La inicialización nunca sobrescribe un catálogo existente. Si ya hay datos en MySQL, la aplicación los lee sin importar el contenido del catálogo del ZIP.
+
+## 4. Verificar en tu alojamiento
+
+En `pruebas`, crea un producto, cambia su stock y sube una imagen. Descarga un respaldo desde Respaldos. Actualiza/republica solo la vista previa y comprueba que el producto, el stock y la imagen sigan allí. Comprueba también que `publicado` conserva sus propios productos.
+
+Para pasar un catálogo completo de pruebas a publicado, usa descargar/restaurar respaldo de forma expresa. Al activar por primera vez el entorno Publicado con su catálogo vacío, la tienda mostrará que está en preparación hasta que entres al panel e importes o inicies ese catálogo. Planifica ese paso antes de cambiar el código público.
+
+## Respaldos y límites
+
+Respaldos → Descargar respaldo completo incluye todos los productos (también ocultos), categorías, configuración e imágenes referenciadas bajo uploads/. Las imágenes originales del diseño y las imágenes enlazadas desde otras webs no se incrustan; conserva también el ZIP del proyecto y los archivos externos que necesites.
+
+El formato es JSON por líneas comprimido con gzip (.jsonl.gz). No lo cargues en la opción Importar SQL de GoDaddy. Usa Restaurar una copia dentro del panel de la tienda.
+
+Se conservan las 50 revisiones anteriores del catálogo en MySQL; las imágenes subidas son inmutables y no se eliminan automáticamente. El consumo de almacenamiento de la base puede crecer. Cada imagen admite hasta 12 MB. La importación admite hasta 1 GB descomprimido y verifica que estén todas las imágenes antes de reemplazar el catálogo. Si se interrumpe la importación, pueden quedar imágenes sin referencia, pero el catálogo previo permanece activo. Los enlaces externos dependen de su proveedor.
+
+Los respaldos dentro de MySQL no sustituyen a una copia descargada fuera de la cuenta. Exportar SQL en GoDaddy puede respaldar las tablas completas, incluidos ambos catálogos y las imágenes.
+
+El stock sigue siendo manual después de cada venta por WhatsApp. Las sesiones de administración caducan y se cierran al reiniciar; esto no elimina el catálogo.
+
+## Validación realizada
+
+Pruebas locales sobre MariaDB 11.4.10 usando el protocolo MySQL y mysql2: catálogo e imágenes tras destruir la carpeta de aplicación, varias instancias con control de revisión, separación de catálogos, importación/exportación con imágenes, rechazo de respaldos incompletos y protección del panel. La conexión y persistencia en la base real de GoDaddy siguen pendientes de verificar antes de publicar.
+
+Referencias: https://raw.githubusercontent.com/godaddy/nodejs-hosting-agent-skill/main/skills/godaddy-nodejs-hosting/contract.md y respuesta de soporte de GoDaddy aportada por el usuario el 17 de septiembre de 2026.

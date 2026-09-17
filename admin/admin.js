@@ -6,7 +6,7 @@
   const money=n=>'S/ '+Number(n||0).toFixed(2);
   const copy=x=>JSON.parse(JSON.stringify(x));
   let state,token,view='products',dirty=false,editing=null,saving=false,query='',category='',status='';
-  let toastTimer,pendingUploads=0;
+  let toastTimer,pendingUploads=0,storage;
   function updateSaveButtons(){ $$('button[type=submit]').forEach(b=>b.disabled=saving||pendingUploads>0); }
   function toast(message,error=false){const el=$('#toast');el.textContent=message;el.classList.toggle('error',error);el.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.hidden=true,error?9000:4500);}
   async function api(url,options={}){
@@ -26,10 +26,10 @@
   function render(){
     if(!state)return;
     $$('.nav-button').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.setAttribute('aria-current',b.dataset.view===view?'page':'false');});
-    const labels={products:['Productos','Administra tu catálogo, sus precios y su disponibilidad.'],categories:['Categorías','Organiza tus productos y cambia las imágenes de los filtros.'],settings:['Configurar web','Edita la marca, los textos, el contacto y el fondo de tu tienda.']};
+    const labels={products:['Productos','Administra tu catálogo, sus precios y su disponibilidad.'],categories:['Categorías','Organiza tus productos y cambia las imágenes de los filtros.'],settings:['Configurar web','Edita la marca, los textos, el contacto y el fondo de tu tienda.'],backups:['Respaldos','Descarga una copia de tus productos, configuración e imágenes subidas.']};
     $('#pageTitle').textContent=labels[view][0];$('#pageIntro').textContent=labels[view][1];
     $('#pageAction').innerHTML=view==='products'?'<button class="button primary" id="addProduct"><span aria-hidden="true">＋</span> Agregar producto</button>':view==='categories'?'<button class="button primary" id="addCategory"><span aria-hidden="true">＋</span> Nueva categoría</button>':'<a class="button secondary" href="/" target="_blank" rel="noopener">Ver tienda ↗</a>';
-    if(view==='products')renderProducts();else if(view==='categories')renderCategories();else renderSettings();
+    if(view==='products')renderProducts();else if(view==='categories')renderCategories();else if(view==='backups')renderBackups();else renderSettings();
     $('#addProduct')?.addEventListener('click',()=>openProduct());$('#addCategory')?.addEventListener('click',()=>openCategory());
   }
   function renderProducts(){
@@ -91,6 +91,32 @@
     form.addEventListener('submit',async e=>{e.preventDefault();const f=new FormData(form),next=copy(state);for(const key of Object.keys(s)){if(key==='trust')next.settings.trust=[0,1,2].map(i=>String(f.get('trust_'+i)));else if(key==='show_footer_contact')next.settings[key]=f.has(key);else if(f.has(key))next.settings[key]=String(f.get(key)).trim();}try{if(await save(next))render();}catch(err){toast(err.message,true);}});
   }
   function closeEditor(){if(saving)return;if(pendingUploads){toast('Espera a que termine la subida de imágenes.',true);return;}if(dirty&&!confirm('Tienes cambios sin guardar. ¿Quieres descartarlos?'))return;dirty=false;$('#editor').close();editing=null;}
+  function importField(){return '<label class="field"><span>Restaurar un respaldo (.jsonl.gz)</span><input type="file" id="backupFile" accept=".gz,application/gzip"><small>Incluye catálogo, configuración e imágenes subidas. Los cambios se aplican al terminar de verificar el archivo.</small></label><button type="button" class="button secondary" id="importBackup">Seleccionar y restaurar respaldo</button>';}
+  function wireImport(){
+    $('#importBackup').onclick=async()=>{
+      const file=$('#backupFile').files[0];if(!file){toast('Selecciona un archivo .jsonl.gz.',true);return;}
+      if(!confirm(state?'El respaldo reemplazará el catálogo actual. Se conservará la versión anterior. ¿Restaurar?':'¿Iniciar este catálogo con el contenido del respaldo?'))return;
+      saving=true;$('#importBackup').disabled=true;
+      try{const result=await api('/api/admin/import',{method:'POST',headers:{'Content-Type':'application/gzip','X-Catalog-Revision':String(state?.revision??'new')},body:file});installState(result);dirty=false;view='backups';await boot();toast('Respaldo restaurado.');}
+      catch(error){toast(error.message,true);}finally{saving=false;$('#importBackup')?.removeAttribute('disabled');}
+    };
+  }
+  function renderBackups(){
+    $('#mainContent').innerHTML=`<section class="settings-card"><h2>Guardar una copia en tu equipo</h2><p class="section-note">Catálogo: <strong>${esc(storage.catalogId)}</strong>. ${storage.kind==='mysql'?'Los cambios y las imágenes subidas se guardan en MySQL.':'Los cambios se guardan en este equipo.'} Las imágenes originales del diseño siguen incluidas en el proyecto.</p><a class="button primary" href="/api/admin/backup" download>Descargar respaldo completo</a></section><section class="settings-card"><h2>Restaurar una copia</h2>${importField()}</section><section class="settings-card"><h2>Versiones anteriores</h2><p class="section-note">Se conservan las últimas 50 versiones del catálogo en MySQL. Descarga una copia antes de restaurarla.</p><div id="backupList">Consultando versiones…</div></section>`;
+    wireImport();
+    api('/api/admin/storage').then(data=>{storage=data;const list=$('#backupList');if(!list)return;list.innerHTML=data.backups.length?data.backups.map(b=>`<p class="backup-row"><span>Revisión ${Number(b.revision)} · ${esc(new Date(b.created_at).toLocaleString('es-PE'))}</span><a class="button secondary small" href="/api/admin/backup?revision=${Number(b.revision)}" download>Descargar</a></p>`).join(''):'<p class="section-note">Todavía no hay versiones anteriores disponibles aquí.</p>';}).catch(error=>toast(error.message,true));
+  }
+  function showSetup(){
+    state=null;$('#pageTitle').textContent='Configurar catálogo';$('#pageIntro').textContent='Este catálogo de la base de datos está vacío. No se han cargado productos automáticamente.';$('#pageAction').innerHTML='';
+    $('#mainContent').innerHTML=`<section class="settings-card"><h2>Catálogo: ${esc(storage.catalogId)}</h2><p class="section-note">Restaura un respaldo si lo tienes. El catálogo inicial contiene los productos del paquete; no recupera los cambios perdidos.</p>${importField()}${storage.legacyAvailable?'<p><button class="button secondary" id="importLegacy">Importar catálogo anterior de esta instancia</button></p>':''}<p><button class="button secondary" id="useBundled">Usar catálogo inicial del paquete</button></p></section>`;wireImport();
+    const initialize=async source=>{
+      if(!confirm(source==='bundled'?'¿Iniciar con los productos originales del paquete? Esto no recupera los cambios perdidos.':'¿Importar el catálogo anterior y sus imágenes disponibles en esta instancia?'))return;
+      if(saving)return;saving=true;$('#mainContent').querySelectorAll('button').forEach(b=>b.disabled=true);
+      try{installState(await api('/api/admin/initialize?source='+source,{method:'POST'}));view='products';await boot();}
+      catch(error){toast(error.message,true);}finally{saving=false;$('#mainContent').querySelectorAll('button').forEach(b=>b.disabled=false);}
+    };
+    $('#useBundled').onclick=()=>initialize('bundled');$('#importLegacy')?.addEventListener('click',()=>initialize('legacy'));
+  }
   $('#closeEditor').onclick=closeEditor;$('#cancelEditor').onclick=closeEditor;$('#editor').addEventListener('cancel',e=>{e.preventDefault();closeEditor();});$('#editorForm').addEventListener('input',()=>dirty=true);$('#editorForm').addEventListener('change',()=>dirty=true);
   $('#editorForm').addEventListener('submit',async e=>{
     e.preventDefault();if(!editing)return;$('#editorError').textContent='';const f=new FormData(e.target),next=copy(state);
@@ -120,7 +146,9 @@
   async function boot(){
     const session=await api('/api/admin/session');
     if(session.hosted&&!session.authenticated){showLogin(session.configured);return;}
-    installState(await api('/api/admin/state'));$('.admin-shell').hidden=false;$('#loginScreen').hidden=true;$('#logoutButton').hidden=!session.hosted;$('#accessLabel').textContent=session.hosted?'Sesión protegida':'En este equipo';render();
+    storage=await api('/api/admin/storage');token=storage.token;$('.admin-shell').hidden=false;$('#loginScreen').hidden=true;$('#logoutButton').hidden=!session.hosted;$('#accessLabel').textContent=storage.kind==='mysql'?'MySQL · '+storage.catalogId:'En este equipo';
+    if(!storage.initialized){showSetup();return;}
+    installState(await api('/api/admin/state'));render();
   }
   $('#loginForm').addEventListener('submit',async e=>{
     e.preventDefault();$('#loginButton').disabled=true;$('#loginError').textContent='';
