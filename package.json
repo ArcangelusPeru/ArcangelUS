@@ -6,6 +6,7 @@
   "main": "start.cjs",
   "engines": { "node": ">=20" },
   "scripts": {
+    "dev": "node start.cjs",
     "build": "node --check start.cjs && node --check server.mjs && node --check hosting.mjs && node --check admin/admin.js && node --check js/index.js",
     "start": "node start.cjs"
   },
