@@ -1,6 +1,6 @@
-# Arcangel US 1.3.7 · GoDaddy Node.js + MySQL
+# Arcangel US 1.4.1 · GoDaddy Node.js + MySQL
 
-Para instalar la actualización de clientes y billetera, sigue **CLIENTES-Y-VENTAS.md**. Esa guía incluye qué subir, cómo activar ventas y cómo usar el panel.
+Para volver a subir el paquete completo y corregir la vinculación Yape, sigue **ACTUALIZAR-GODADDY-1.4.1.md**. Para las funciones de clientes y billetera, consulta **CLIENTES-Y-VENTAS.md**.
 
 ## Configuración del alojamiento
 
@@ -13,7 +13,7 @@ Conserva Node.js 22, el comando de compilación `npm run build` y el de inicio `
 | `SHOP_CATALOG_ID` | Conserva el valor de cada entorno: normalmente `pruebas` en Vista previa y `publicado` en Publicado. |
 | `COMMERCE_ENABLED` | `true` para activar clientes y compras; omitido o `false` mantiene solo WhatsApp. |
 | `COMMERCE_KEY` | Clave privada estable de 32 bytes en base64; necesaria al activar ventas. Sigue CLIENTES-Y-VENTAS.md. |
-| `APP_URL` | Opcional. Dirección exacta del entorno, sin `/admin`; para el dominio público `https://arcangelpro.com`. |
+| `APP_URL` | Necesario para vincular Yape: en Publicado usa `https://arcangelpro.com`, sin `/admin`. Genera el código desde el panel publicado. En Vista previa, debe coincidir con su dirección o quedar sin configurar para que el panel detecte su origen; no vincules el celular a la vista previa privada. |
 | `PORT` | Lo proporciona GoDaddy; no fijarlo manualmente. |
 | `DB_SSL`, `DB_SSL_CA` | Solo si tu conexión MySQL lo requiere; `DB_SSL=true` verifica el certificado. |
 
