@@ -1,10 +1,10 @@
-# Arcangel US 1.4.1
+# Arcangel US 1.5.1
 
 Tienda con tu logo, olas rojas, catálogo editable y panel del dueño. Esta versión incluye clientes, billetera en soles, aprobación manual de recargas por Yape/Plin, compras con saldo, cuentas de inventario y entrega automática o manual por producto.
 
 ## Actualizar GoDaddy
 
-Para volver a subir el proyecto completo, usa **arcangel-us-godaddy-v1.4.1.zip** y sigue **ACTUALIZAR-GODADDY-1.4.1.md**. Incluye la corrección **Liberar número de este catálogo** para Yape. El archivo **arcangel-us-actualizacion-yape-v1.4.1.zip** es una actualización de código para aplicar sobre un proyecto existente; no es el paquete completo.
+Para volver a subir el proyecto completo, usa **arcangel-us-godaddy-v1.5.1.zip** y sigue **ACTUALIZAR-GODADDY-1.5.1.md**. Incluye **Notificaciones Yape** con Dashboard, Pagos (Yapeos), Reportes, filtros y exportación CSV para Excel. El archivo **arcangel-us-actualizacion-yape-v1.5.1.zip** es una actualización de código para aplicar sobre un proyecto existente; no es el paquete completo.
 
 La guía **YAPE-AUTOMATICO.md** explica la vinculación con la APK y cómo liberar un número reservado en vista previa. **CLIENTES-Y-VENTAS.md** describe las funciones de clientes y billetera. Mercado Pago permanece desactivado mientras no se configure; no se ha completado su prueba de producción.
 

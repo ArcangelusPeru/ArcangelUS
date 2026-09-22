@@ -32,6 +32,8 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce')return done(200,{enabled:true,...await commerce.adminData()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/alerts')return done(200,{enabled:true,...await commerce.alerts()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/yape')return done(200,{...await commerce.yape.status(),...await commerce.yape.history(url.searchParams.get('before')),claims:await commerce.yape.reviews()});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/yape/activity')return done(200,{...await commerce.yape.activity(Object.fromEntries(url.searchParams),url.searchParams.get('export')==='1'),device:await commerce.yape.status()});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/yape/announcements')return done(200,await commerce.yape.announcements(Object.fromEntries(url.searchParams)));
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/reports')return done(200,{reports:await commerce.reports()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/inventory')return done(200,{items:await commerce.inventory(text(url.searchParams.get('product_id')||'','el producto',100,false))});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/customers')return done(200,{customers:await commerce.customers(url.searchParams.get('search')||'',url.searchParams.get('status')||'all'),counts:await commerce.customerCounts()});

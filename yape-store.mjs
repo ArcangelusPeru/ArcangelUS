@@ -1,5 +1,6 @@
 import { randomUUID, createHmac } from 'node:crypto';
 import { fail, requestId, soles, digest, secretToken, equalSecret } from './commerce-security.mjs';
+import { createYapeReports } from './yape-reports.mjs';
 
 export const YAPE_PACKAGE='com.bcp.innovacxion.yapeapp';
 export function firstName(value){
@@ -17,6 +18,7 @@ export function parseYapeNotification(value){
 export function yapeSignature(secret,timestamp,nonce,raw){return createHmac('sha256',secret).update(`${timestamp}\n${nonce}\n`).update(raw).digest('hex');}
 
 export async function createYapeStore({pool,transaction,catalogId:cat,sealer}){
+  const reporting=createYapeReports({pool,catalogId:cat,sealer});
   const common='ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
   for(const definition of [
     `arcangel_yape_devices (catalog_id VARCHAR(48) PRIMARY KEY,device_id CHAR(36) NOT NULL UNIQUE,phone CHAR(9) NOT NULL UNIQUE,secret TEXT NOT NULL,enabled BOOLEAN NOT NULL DEFAULT FALSE,last_seen BIGINT NULL,last_payment BIGINT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
@@ -141,6 +143,8 @@ export async function createYapeStore({pool,transaction,catalogId:cat,sealer}){
         return finish(db,row,'approved',event.event_id,'Yape: conciliado por el administrador · '+event.event_id.slice(0,8));
       });
     },
+    activity:reporting.activity,
+    announcements:reporting.announcements,
     async history(before){const cursor=before?requestId(before):null;const params=[cat];let extra='';if(cursor){const [[r]]=await pool.execute('SELECT posted_at,event_id FROM arcangel_yape_events WHERE catalog_id=? AND event_id=?',[cat,cursor]);if(!r)throw fail(400,'Página no válida.');extra=' AND (posted_at<? OR (posted_at=? AND event_id<?))';params.push(r.posted_at,r.posted_at,r.event_id);}
       const [rows]=await pool.execute('SELECT event_id,first_name,amount_cents,posted_at,state,claim_id FROM arcangel_yape_events WHERE catalog_id=?'+extra+' ORDER BY posted_at DESC,event_id DESC LIMIT 101',params);return {events:rows.slice(0,100),next:rows.length>100?rows[99].event_id:null};
     }

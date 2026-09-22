@@ -1,6 +1,6 @@
-# Arcangel US 1.4.1 · GoDaddy Node.js + MySQL
+# Arcangel US 1.5.1 · GoDaddy Node.js + MySQL
 
-Para volver a subir el paquete completo y corregir la vinculación Yape, sigue **ACTUALIZAR-GODADDY-1.4.1.md**. Para las funciones de clientes y billetera, consulta **CLIENTES-Y-VENTAS.md**.
+Para volver a subir el paquete completo con el nuevo apartado de Notificaciones Yape, sigue **ACTUALIZAR-GODADDY-1.5.1.md**. Para las funciones de clientes y billetera, consulta **CLIENTES-Y-VENTAS.md**.
 
 ## Configuración del alojamiento
 
