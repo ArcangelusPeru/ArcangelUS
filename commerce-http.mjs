@@ -42,12 +42,13 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
           let origin;try{origin=new URL(publicOrigin);}catch{throw fail(409,'Configura APP_URL con https://arcangelpro.com antes de vincular.');}
           if(origin.protocol!=='https:'||origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash)throw fail(409,'APP_URL debe ser el dominio HTTPS de la tienda.');
           const credentials=await commerce.yape.pair(data.phone);
-          return done(201,{pairing_code:Buffer.from(JSON.stringify({url:origin.origin,phone:data.phone,...credentials})).toString('base64url')});
+          return done(201,{device_id:credentials.device_id,pairing_code:Buffer.from(JSON.stringify({url:origin.origin,phone:data.phone,...credentials})).toString('base64url')});
         }
         case '/api/admin/commerce/yape/enable':{
           if(data.enabled){const state=await readState();if(!state?.settings.payment_qr)throw fail(409,'Configura primero el QR de Yape en Configurar web.');}
           return done(200,await commerce.yape.enable(data.enabled));
         }
+        case '/api/admin/commerce/yape/release':return done(200,await commerce.yape.release(data));
         case '/api/admin/commerce/yape/review':return done(200,await commerce.yape.review(data));
         case '/api/admin/commerce/topup':return done(200,await commerce.approveTopup(data.entry_id,data.approved,data.note));
         case '/api/admin/commerce/inventory':return done(201,await commerce.addInventory(text(data.product_id,'el producto',100),data.items,data.request_id));
