@@ -220,6 +220,10 @@ card.innerHTML = `
         </div>
       </div>
     `;
+    const purchases=document.createElement('div');purchases.className='card-purchase-options';purchases.setAttribute('data-commerce','');
+    const canBuy=['manual','automatic'].includes(p.checkout_mode)&&!p.out_of_stock;
+    purchases.innerHTML=`<a class="buy-with-balance" href="/cuenta?comprar=${encodeURIComponent(p.id)}" ${canBuy?'':'aria-disabled="true" tabindex="-1"'}>COMPRAR ACÁ</a><a class="buy-whatsapp-small" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, quiero comprar '+p.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.66 15L2 22l5.2-1.36A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.13l-.3-.18-3.07.8.82-2.99-.2-.31A8 8 0 1 1 12 20zm4.38-5.99c-.24-.12-1.4-.69-1.62-.77-.22-.08-.38-.12-.54.12-.16.24-.61.77-.75.93-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.18-.71-.63-1.19-1.42-1.33-1.66-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.47-.39-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.65.57.24 1.02.39 1.37.5.58.18 1.1.15 1.52.09.46-.07 1.4-.57 1.6-1.12.2-.55.2-1.02.14-1.12-.06-.1-.22-.16-.46-.28z"/></svg>COMPRAR POR WHATSAPP</a>`;
+    purchases.addEventListener('click',e=>{e.stopPropagation();if(e.target.closest('[aria-disabled=true]'))e.preventDefault();});card.querySelector('.card-body').appendChild(purchases);
     card.addEventListener('click', () => {
       if (p.out_of_stock) {
         showOutOfStockModal();
@@ -236,6 +240,7 @@ card.innerHTML = `
       card.addEventListener('touchstart', preload, { once: true, passive: true });
     }
     card.addEventListener('keydown', e => {
+      if(e.target!==card)return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         if (p.out_of_stock) {
@@ -378,6 +383,8 @@ if (p.note && p.note.trim()) {
     `Hola! Quiero comprar:\n\n🎯 *${p.name}*\n📦 ${p.type} · ${p.duration}\n💰 S/ ${Number(p.pen).toFixed(2)} soles\n\n¿Está disponible? ¿Cómo es el proceso de pago?`
   );
   document.getElementById('mWA').href = `https://wa.me/${WA}?text=${msg}`;
+  const directBuy=document.getElementById('mBuyHere');
+  if(directBuy){const enabled=['manual','automatic'].includes(p.checkout_mode)&&!p.out_of_stock;directBuy.href='/cuenta?comprar='+encodeURIComponent(p.id);directBuy.setAttribute('aria-disabled',String(!enabled));directBuy.title=enabled?(p.checkout_mode==='automatic'?'Compra con saldo y entrega automática':'Compra con saldo y atención manual'):'Compra con saldo no disponible para este producto';directBuy.onclick=e=>{if(!enabled)e.preventDefault();};}
 
   backdrop.classList.add('open');
   document.querySelector('.wa-float').style.display = 'none';
