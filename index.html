@@ -46,6 +46,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="logo/arcangel-us.png">
 
 <link href="css/fonts.css" rel="stylesheet">
+<link href="css/commerce.css" rel="stylesheet">
 
 <style>
   input[type="search"]::-webkit-search-cancel-button {
@@ -994,6 +995,7 @@ a{color:inherit;text-decoration:none}
         </div>
       </div>
       <div class="header-right">
+        <nav class="customer-store-nav" data-commerce aria-label="Mi cuenta"><a href="/cuenta" class="customer-account-link">Iniciar sesión</a><a href="/cuenta?registro=1" class="customer-account-link">Registrarme</a></nav>
         <button class="btn-icon" data-theme-btn aria-label="Cambiar tema">
           <svg id="themeIcon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
@@ -1116,7 +1118,6 @@ a{color:inherit;text-decoration:none}
 <p class="footer-text" id="footerContact" style="margin-top:8px;">
   ¿Quieres una web así? <a href="https://wa.me/51929688960?text=%C2%A1Hola!%20Estuve%20viendo%20Arcangel US%20Streaming%20y%20me%20encant%C3%B3%20c%C3%B3mo%20est%C3%A1%20dise%C3%B1ado%20el%20sistema.%20Me%20gustar%C3%ADa%20crear%20una%20plataforma%20web%20similar%20para%20mi%20negocio%2C%20con%20una%20imagen%20profesional%20y%20herramientas%20para%20gestionar%20ventas%20y%20clientes.%20%C2%BFPodemos%20conversar%3F" target="_blank" rel="noopener noreferrer" style="color:var(--accent-2);text-decoration:underline;font-weight:600;">Contáctame aquí</a>
 </p>
-    <a id="adminLink" href="/admin" hidden style="display:inline-block;margin-top:24px;color:var(--text-2);font-size:13px;text-decoration:underline">Administrar tienda</a>
   </div>
 </footer>
 
@@ -1140,7 +1141,8 @@ a{color:inherit;text-decoration:none}
       <div class="modal-buy-panel">
         <div class="modal-price-hero" id="mPriceHero"></div>
         <div class="modal-whatsapp-sticky">
-          <div class="modal-cta-copy">Compra rápida por WhatsApp</div>
+          <div class="modal-cta-copy">Elige cómo comprar</div>
+          <a id="mBuyHere" class="buy-with-balance" data-commerce href="/cuenta">COMPRAR ACÁ</a>
           <a class="btn-whatsapp" id="mWA" target="_blank" rel="noopener noreferrer">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor">
               <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
@@ -1180,6 +1182,7 @@ a{color:inherit;text-decoration:none}
 <script src="js/catalog.js"></script>
 <script src="js/shop-settings.js"></script>
 <script src="js/waves.js"></script>
+<script src="js/commerce.js"></script>
 <script src="js/index.js"></script>
 
 <script>

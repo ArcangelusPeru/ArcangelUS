@@ -1,58 +1,57 @@
-# Arcangel US · Tienda y panel de administración
+# Arcangel US 1.3.7
 
-**Para GoDaddy:** utiliza `arcangel-us-godaddy-v1.2.0.zip` y sigue `SUBIR-A-GODADDY.md`. Incluye guardado en MySQL de productos e imágenes, respaldos descargables y catálogos separados para pruebas y publicado. Requiere configurar la base antes de desplegar.
+Tienda con tu logo, olas rojas, catálogo editable y panel del dueño. Esta versión incluye clientes, billetera en soles, aprobación manual de recargas por Yape/Plin, compras con saldo, cuentas de inventario y entrega automática o manual por producto.
 
-## Abrir la tienda y el panel
+## Actualizar GoDaddy
 
-1. Descomprime la carpeta completa si estás usando el ZIP.
-2. Haz doble clic en `INICIAR-TIENDA.cmd` y deja esa ventana abierta.
-3. Abre la tienda: http://127.0.0.1:4173/
-4. Abre el panel: http://127.0.0.1:4173/admin
+Sigue **CLIENTES-Y-VENTAS.md** para actualizar tu proyecto actual y activar las funciones nuevas. Usa `arcangel-us-actualizacion-ventas-v1.3.7.zip` para reemplazar código en el proyecto existente. Para una carpeta completa, usa `arcangel-us-godaddy-v1.3.7.zip`.
 
-Requiere Node.js 20 o superior, ya instalado en este equipo. No necesita instalar paquetes. Para detener el servidor, cierra su ventana. Para volver a abrirlo, ejecuta de nuevo `INICIAR-TIENDA.cmd`.
+Mantén tus secretos actuales, en particular `SHOP_CATALOG_ID` y `ADMIN_PASSWORD`. Para activar ventas se añaden `COMMERCE_ENABLED=true` y una `COMMERCE_KEY` privada que debes conservar. No se incluye ninguna clave ni contraseña de producción en estos archivos.
 
-## Productos
+## Accesos separados
 
-- Usa **Agregar producto** para crear una ficha y **Editar** para cambiar una existente.
-- Puedes editar nombre, marca, imagen, categoría, tipo, duración, subtítulo, descripción, precio, precio anterior, características y condiciones.
-- Sube imágenes PNG, JPG, WebP o GIF de hasta 12 MB, o pega un enlace de imagen.
-- Selecciona **Disponible** o **Agotado**. Puedes indicar unidades; con **0** se marca agotado automáticamente y se desactiva la compra.
-- El stock es manual: actualiza las unidades después de cada venta por WhatsApp. Deja el campo vacío si solo quieres controlar disponible/agotado.
-- Desmarca **Mostrar producto en la tienda** para ocultarlo sin borrarlo.
-- Activa **Incluir en Promos y Ofertas** para mostrarlo en ese filtro.
-- Cambia las posiciones para ordenar productos: los números menores aparecen primero.
-- También puedes duplicar productos o eliminarlos desde su editor.
-- Pulsa **Guardar cambios** o **Crear producto** para aplicar lo editado.
+- Tienda: https://arcangelpro.com/
+- Clientes: https://arcangelpro.com/cuenta
+- Dueño: https://arcangelpro.com/admin
 
-## Categorías y configuración de la web
+Registrarse como cliente no permite acceder a la administración. Cada cliente ve únicamente su billetera y sus compras. Tu panel conserva la contraseña del dueño configurada en GoDaddy.
 
-En **Categorías** puedes crear categorías, editar sus nombres, imágenes y posiciones. Para eliminar una categoría, primero mueve sus productos a otra. Los filtros Todos y Promos también tienen su imagen y nombre editables.
+## Tu panel
 
-En **Configurar web** puedes cambiar:
+- **Productos:** agregar, editar imágenes, nombres, precios, descripciones, modalidad de entrega, disponibilidad y unidades. Arrastra el asa de una fila para ordenar desde un navegador de escritorio.
+- **Categorías:** nombres, imágenes y orden de filtros.
+- **Configurar web:** marca, logos, textos, WhatsApp, QR de pago de Yape/Plin, titular y colores.
+- **Ventas:** revisión de recargas con avisos sonoros, inventario de cuentas, entregas, devoluciones de saldo y clientes.
+- **Respaldos:** exportación del catálogo y sus imágenes. Para clientes, saldos y ventas, exporta SQL desde GoDaddy y conserva la clave de cifrado por separado.
 
-- Nombre de la tienda y logos de portada, cabecera y pie.
-- Frases de portada, mensajes de confianza y número de clientes.
-- WhatsApp de ventas, mensajes y texto del botón de compra.
-- Texto y contacto del pie de página.
-- Colores de las olas del fondo y descripción para buscadores.
+Los productos existentes conservan la venta por WhatsApp hasta que elijas entrega manual o automática. En modalidad automática, el stock coincide con las cuentas disponibles. Las ventas por WhatsApp requieren marcar manualmente la cuenta vendida.
 
-Pulsa **Guardar configuración** al terminar. El número de ventas inicial es **+51 929 688 960**. La marca inicial es **Arcangel US**, con el logo transparente y las olas rojas y turquesas.
+## Vista local del catálogo
 
-## Guardado y copias
+Con Node.js instalado, haz doble clic en `INICIAR-TIENDA.cmd` y abre http://127.0.0.1:4173/ o http://127.0.0.1:4173/admin. Este modo se limita a este equipo y guarda el catálogo en archivos; no necesita MySQL. No expongas este modo local a Internet.
 
-Los cambios se guardan en este equipo y se conservan después de cerrar el navegador o reiniciar el servidor. La tienda abierta actualiza el catálogo al volver a su pestaña y cada cinco segundos mientras esté visible.
+Las funciones de billetera y venta requieren el servidor protegido y MySQL: no funcionan con un servidor de archivos estáticos ni en el modo de catálogo local. En GoDaddy se instalan las dependencias de `package-lock.json` y se usa `npm start`.
 
-- `js/catalog.js`: productos, categorías y configuración guardados.
-- `uploads/`: imágenes subidas desde el panel.
-- `.backups/`: copias del catálogo anterior a cada guardado.
+## Datos y respaldos
 
-Para trasladar o respaldar todo, copia la carpeta completa. Para recuperar una copia de `.backups/`, detén el servidor primero. Los archivos `.json` contienen el estado anterior: su contenido debe envolverse en `const CATALOG = ...;` al reemplazar `js/catalog.js`; las copias `.js` ya incluyen esa declaración.
+En GoDaddy, catálogo, imágenes subidas, clientes y ventas se guardan en MySQL, separados por `SHOP_CATALOG_ID`. El disco de la aplicación no se utiliza como almacén persistente de ventas. Al actualizar no se restauran productos iniciales automáticamente.
 
-Si abres varios paneles a la vez, se detectan los cambios de otra pestaña para evitar sobrescribirlos. En ese caso, vuelve a cargar el panel antes de continuar.
+En el modo de catálogo local, conserva `js/catalog.js`, `uploads` y `.backups`. Las compras reales deben usar el modo MySQL del alojamiento.
 
-## Alcance
+La guía **CLIENTES-Y-VENTAS.md** explica los límites, recuperación de acceso, respaldos y prueba antes de publicar. **SUBIR-A-GODADDY.md** resume la configuración del servidor.
 
-En este equipo, abre `INICIAR-TIENDA.cmd` para ver y editar la tienda. Para usarla en Internet, el proyecto también admite GoDaddy Node.js Hosting; sigue `SUBIR-A-GODADDY.md`. El panel remoto requiere una contraseña configurada en el alojamiento. Los archivos codificados como WebP en el paquete para GoDaddy se sirven desde Node.js, conservando las rutas de imágenes anteriores.
+## Usuarios (1.3.5)
 
-El diseño y los 53 productos iniciales proceden de la copia de la web pública https://cuentas.codeghy.com/ del 15 de septiembre de 2026. El catálogo es independiente y no se sincroniza con la tienda original. Las compras se coordinan mediante enlaces de WhatsApp.
+En Ventas → Clientes puedes crear usuarios, suspender/reactivar y eliminar de forma recuperable. El filtro Eliminados permite restaurarlos sin perder saldo ni compras. En el acceso de clientes aparece Registrarse y se confirma la contraseña. Consulta CLIENTES-Y-VENTAS.md para los pasos.
 
+## Recuperación asistida (1.3.5)
+
+Ventas → Clientes permite consultar y copiar el código vigente de cada cliente. Las cuentas antiguas ofrecen generar un código nuevo de forma explícita. En Olvidé mi contraseña hay un botón de soporte a WhatsApp +51 929 688 960 con el mensaje preparado. Los códigos nuevos se guardan cifrados en MySQL y se actualizan cuando se recupera la contraseña.
+
+## Cuentas vendidas, soporte y WhatsApp (1.3.6)
+
+Puedes editar cuentas vendidas en Inventario y en Pedidos, incluidas las entregas manuales. Los datos corregidos llegan al comprador sin cambiar stock ni cobros. El cliente puede reportar fallas y consultar tu respuesta; atiéndelas en Ventas → Reportes. El panel avisa de nuevos reportes y puede emitir sonido al activarlo. El botón Comprar por WhatsApp destaca en verde con icono. Los reportes se guardan en MySQL y se incluyen en la exportación SQL; conserva las mismas claves y el identificador del catálogo.
+
+## Tablas de administración (1.3.7)
+
+Recargas, Pedidos, Clientes y Reportes ahora usan tablas con el estilo de Inventario, búsqueda, filtros, paginación y acciones por fila. Incluyen encabezados fijos y desplazamiento horizontal para celulares. Los formularios de revisión, entrega y respuesta se despliegan en la fila correspondiente. No requiere cambiar secretos ni importar SQL.

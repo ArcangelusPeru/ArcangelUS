@@ -4,11 +4,11 @@ import { pipeline } from 'node:stream/promises';
 import { randomUUID } from 'node:crypto';
 
 const fail=message=>Object.assign(Error(message),{status:400});
-export const uploadPaths=state=>[...new Set([...state.products.map(p=>p.banner_url),...state.categories.map(c=>c.image_url),...['logo','header_logo','footer_logo','all_image','offers_image'].map(k=>state.settings[k])].filter(value=>value?.startsWith('uploads/')))];
+export const uploadPaths=state=>[...new Set([...state.products.flatMap(p=>[p.banner_url,p.logo_url]),...state.categories.map(c=>c.image_url),...['logo','header_logo','footer_logo','all_image','offers_image','payment_qr'].map(k=>state.settings[k])].filter(value=>value?.startsWith('uploads/')))];
 export function remapImages(state,mapping){
-  for(const p of state.products)p.banner_url=mapping.get(p.banner_url)||p.banner_url;
+  for(const p of state.products){p.banner_url=mapping.get(p.banner_url)||p.banner_url;if(p.logo_url)p.logo_url=mapping.get(p.logo_url)||p.logo_url;}
   for(const c of state.categories)c.image_url=mapping.get(c.image_url)||c.image_url;
-  for(const key of ['logo','header_logo','footer_logo','all_image','offers_image'])state.settings[key]=mapping.get(state.settings[key])||state.settings[key];
+  for(const key of ['logo','header_logo','footer_logo','all_image','offers_image','payment_qr'])state.settings[key]=mapping.get(state.settings[key])||state.settings[key];
   return state;
 }
 export async function downloadBackup(res,state,getImage){

@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { createCommerceStore } from './commerce-store.mjs';
 
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const hash=bytes=>createHash('sha256').update(bytes).digest('hex');
@@ -10,7 +11,14 @@ export function databaseConfig(env=process.env){
   return fields;
 }
 
-export async function createMySQLStore({database,catalogId}){
+export async function updateCatalog(connection,catalogId,current,next){
+  await connection.execute('INSERT INTO arcangel_backups(catalog_id,revision,document) VALUES(?,?,?)',[catalogId,current.revision,current.document]);
+  const saved={...next,revision:Number(current.revision)+1};
+  await connection.execute('UPDATE arcangel_catalogs SET revision=?,document=? WHERE catalog_id=?',[saved.revision,JSON.stringify(saved),catalogId]);
+  await connection.execute('DELETE FROM arcangel_backups WHERE catalog_id=? AND revision<?',[catalogId,Math.max(0,saved.revision-50)]);
+  return saved;
+}
+export async function createMySQLStore({database,catalogId,commerceEnabled=false,sealer=null}){
   if(!/^[a-z0-9_-]{1,48}$/.test(catalogId||''))throw Error('Configura SHOP_CATALOG_ID: publicado para la tienda y pruebas para la vista previa.');
   const {default:mysql}=await import('mysql2/promise');
   const pool=mysql.createPool({...database,charset:'utf8mb4',connectionLimit:4,waitForConnections:true,queueLimit:20,connectTimeout:10000,multipleStatements:false});
@@ -28,8 +36,10 @@ export async function createMySQLStore({database,catalogId}){
     catch(error){await connection.rollback().catch(()=>{});throw error;}
     finally{connection.release();}
   }
+  let commerce=null;
+  try{if(commerceEnabled)commerce=await createCommerceStore({pool,transaction,catalogId,sealer,updateCatalog});}catch(error){await pool.end();throw error;}
   return {
-    kind:'mysql',catalogId,
+    kind:'mysql',catalogId,commerce,
     async read(){
       const [rows]=await pool.execute('SELECT revision,document FROM arcangel_catalogs WHERE catalog_id=?',[catalogId]);
       if(!rows.length)return null;
@@ -43,18 +53,15 @@ export async function createMySQLStore({database,catalogId}){
         const current=rows[0];
         if(!current){
           if(expected!==null)throw fail(409,'El catálogo no existe. No se ha reemplazado por el catálogo inicial.');
+          if(commerce)await commerce.syncCatalog(connection,next);
           const saved={...next,revision:1};
           try{await connection.execute('INSERT INTO arcangel_catalogs(catalog_id,revision,document) VALUES(?,?,?)',[catalogId,1,JSON.stringify(saved)]);}
           catch(error){if(error.code==='ER_DUP_ENTRY'||error.code==='ER_LOCK_DEADLOCK')throw fail(409,'Otro proceso ya inició este catálogo. Recarga el panel.');throw error;}
           return saved;
         }
         if(Number(current.revision)!==expected)throw fail(409,'La tienda cambió en otra pestaña o instancia. Recarga el panel antes de guardar.');
-        await connection.execute('INSERT INTO arcangel_backups(catalog_id,revision,document) VALUES(?,?,?)',[catalogId,current.revision,current.document]);
-        const saved={...next,revision:expected+1};
-        await connection.execute('UPDATE arcangel_catalogs SET revision=?,document=? WHERE catalog_id=?',[saved.revision,JSON.stringify(saved),catalogId]);
-        // Keep the 50 preceding catalogue revisions. Uploaded images are immutable and retained.
-        await connection.execute('DELETE FROM arcangel_backups WHERE catalog_id=? AND revision<?',[catalogId,Math.max(0,saved.revision-50)]);
-        return saved;
+        if(commerce)await commerce.syncCatalog(connection,next,JSON.parse(current.document));
+        return updateCatalog(connection,catalogId,current,next);
       });
     },
     async putImage(imagePath,mime,bytes){

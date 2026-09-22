@@ -1,11 +1,15 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { databaseConfig } from './mysql-store.mjs';
+import { mercadoConfig } from './mercado-pago.mjs';
 
 export function launchConfig(env=process.env) {
   const hosted=env.SHOP_HOSTED==='1'||Boolean(env.PORT)||env.NODE_ENV==='production';
   const port=Number(env.PORT||(hosted?3000:4173));
   if(!Number.isInteger(port)||port<1||port>65535)throw Error('PORT debe ser un puerto válido.');
-  return {port,host:hosted?'0.0.0.0':'127.0.0.1',hosted,adminPassword:env.ADMIN_PASSWORD||'',publicOrigin:env.APP_URL||'',dataDir:hosted?(env.DATA_DIR||'public/assets/arcangel-us'):undefined,database:hosted?databaseConfig(env):null,catalogId:env.SHOP_CATALOG_ID||''};
+  const commerceEnabled=env.COMMERCE_ENABLED==='true'||env.COMMERCE_ENABLED==='1';
+  if(commerceEnabled&&!env.COMMERCE_KEY)throw Error('COMMERCE_KEY es obligatorio cuando COMMERCE_ENABLED está activo. Genera una clave aleatoria y guárdala como secreto.');
+  if(commerceEnabled&&!/^[A-Za-z0-9+/]{43}=$/.test(env.COMMERCE_KEY))throw Error('COMMERCE_KEY debe ser una clave base64 de 32 bytes.');
+  return {port,host:hosted?'0.0.0.0':'127.0.0.1',hosted,adminPassword:env.ADMIN_PASSWORD||'',publicOrigin:env.APP_URL||'',dataDir:hosted?(env.DATA_DIR||'public/assets/arcangel-us'):undefined,database:hosted?databaseConfig(env):null,catalogId:env.SHOP_CATALOG_ID||'',commerceEnabled,commerceKey:env.COMMERCE_KEY||'',mercado:mercadoConfig(env)};
 }
 
 export function createAdminAccess({hosted=false,adminPassword='',publicOrigin=''}={}) {

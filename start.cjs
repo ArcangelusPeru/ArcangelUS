@@ -1,5 +1,6 @@
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
+const { version } = require('./package.json');
 
 (async () => {
   const { launchConfig } = await import(pathToFileURL(path.join(__dirname, 'hosting.mjs')));
@@ -9,7 +10,7 @@ const { pathToFileURL } = require('node:url');
     ? { ...process.env, SHOP_HOSTED: '0', NODE_ENV: 'development', PORT: '', DATA_DIR: '' }
     : { ...process.env, SHOP_HOSTED: '1' };
   const config = { ...launchConfig(env), root: __dirname };
-  console.log(`[START] Arcangel US 1.2.0 | Node ${process.versions.node} | puerto ${config.port}`);
+  console.log(`[START] Arcangel US ${version} | Node ${process.versions.node} | puerto ${config.port}`);
   const server = await startShopServer(config);
   for (const signal of ['SIGTERM', 'SIGINT']) {
     process.once(signal, () => {

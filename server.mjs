@@ -6,6 +6,9 @@ import { randomUUID } from 'node:crypto';
 import { createAdminAccess, launchConfig } from './hosting.mjs';
 import { createMySQLStore, databaseConfig } from './mysql-store.mjs';
 import { downloadBackup, importBackup, uploadPaths } from './backup.mjs';
+import { vault } from './commerce-security.mjs';
+import { commerceRouter } from './commerce-http.mjs';
+import { createMercadoPago } from './mercado-pago.mjs';
 
 export const DEFAULT_SETTINGS = {
   name:'Arcangel US', logo:'logo/arcangel-us.png', header_logo:'logo/arcangel-us.png', footer_logo:'logo/arcangel-us.png',
@@ -18,7 +21,7 @@ export const DEFAULT_SETTINGS = {
   footer_contact_text:'¿Quieres una web así?', footer_contact_label:'Contáctame aquí', footer_contact_phone:'51929688960',
   footer_contact_message:'¡Hola! Me gustaría crear una plataforma web para mi negocio. ¿Podemos conversar?', show_footer_contact:true,
   all_label:'Todos', all_image:'logo/todos.png', offers_label:'Promos y Ofertas', offers_image:'logo/ofertas.png',
-  search_placeholder:'Buscar', buy_label:'Comprar ahora por WhatsApp',
+  search_placeholder:'Buscar', buy_label:'Comprar por WhatsApp', yape:'', plin:'', payment_name:'',payment_qr:'',
   wave_primary:'#ef2c2c',wave_secondary:'#f87171',wave_teal:'#2dd4bf',
 };
 const fallbackImages={streaming:'logo/streaming.png',musica:'logo/musica.png',software:'logo/licenciasysoftware.png','diseño':'logo/diseñoyeducacion.png'};
@@ -63,7 +66,8 @@ export function validateState(input){
     if(productIds.has(id))throw fail(400,'Hay identificadores de producto repetidos.');productIds.add(id);
     if(!categorySlugs.has(p.filter))throw fail(400,`Selecciona una categoría válida para ${p.name||'el producto'}.`);
     if(!Array.isArray(p.features)||p.features.length>60)throw fail(400,'Revisa las características del producto.');
-    const item={id,filter:p.filter,name:str(p.name,'Nombre del producto',160,true),brand:str(p.brand||'','Marca',100),sub:str(p.sub||'','Subtítulo',250),description:str(p.description||'','Descripción',12000),type:str(p.type||'','Tipo de cuenta',150),duration:str(p.duration||'','Duración',100),pen:number(p.pen,'Precio'),original_pen:number(p.original_pen,'Precio anterior',true),banner_url:img(p.banner_url,'Imagen del producto'),features:p.features.map(x=>str(x,'Característica',2000)).filter(Boolean),note:str(p.note||'','Nota',12000),sort_order:number(p.sort_order??0,'Posición'),cat_sort_order:number(p.cat_sort_order??0,'Posición en categoría'),palette:str(p.palette||'','Paleta',80)};
+    const item={id,filter:p.filter,name:str(p.name,'Nombre del producto',160,true),brand:str(p.brand||'','Marca',100),sub:str(p.sub||'','Subtítulo',250),description:str(p.description||'','Descripción',12000),type:str(p.type||'','Tipo de cuenta',150),duration:str(p.duration||'','Duración',100),pen:number(p.pen,'Precio'),original_pen:number(p.original_pen,'Precio anterior',true),banner_url:img(p.banner_url,'Imagen del producto'),logo_url:img(p.logo_url||'','Logo de la plataforma'),features:p.features.map(x=>str(x,'Característica',2000)).filter(Boolean),note:str(p.note||'','Nota',12000),sort_order:number(p.sort_order??0,'Posición'),cat_sort_order:number(p.cat_sort_order??0,'Posición en categoría'),palette:str(p.palette||'','Paleta',80),checkout_mode:p.checkout_mode||'off'};
+    if(!['off','manual','automatic'].includes(item.checkout_mode))throw fail(400,'Selecciona una modalidad de compra válida.');
     item.stock_quantity=p.stock_quantity==null||p.stock_quantity===''?null:number(p.stock_quantity,'Unidades disponibles');
     if(item.stock_quantity!==null&&!Number.isInteger(item.stock_quantity))throw fail(400,'El stock debe ser un número entero de unidades.');
     for(const key of ['active','out_of_stock','is_oferta']){if(typeof p[key]!=='boolean')throw fail(400,'Revisa el estado del producto.');item[key]=p[key];}
@@ -73,10 +77,11 @@ export function validateState(input){
   const settings={};
   for(const key of Object.keys(DEFAULT_SETTINGS)){
     const value=input.settings[key];
-    if(['logo','header_logo','footer_logo','all_image','offers_image'].includes(key))settings[key]=img(value,key);
+    if(['logo','header_logo','footer_logo','all_image','offers_image','payment_qr'].includes(key))settings[key]=img(value,key);
     else if(key.startsWith('wave_')){if(!/^#[0-9a-f]{6}$/i.test(value))throw fail(400,'Elige un color válido.');settings[key]=value;}
     else if(key==='trust'){if(!Array.isArray(value)||value.length!==3)throw fail(400,'Se necesitan tres mensajes de confianza.');settings[key]=value.map(x=>str(x,'Mensaje',250));}
     else if(key==='show_footer_contact'){if(typeof value!=='boolean')throw fail(400,'Revisa la visibilidad del contacto.');settings[key]=value;}
+    else if(['yape','plin','payment_name'].includes(key))settings[key]=str(value||'',key,200,false);
     else settings[key]=str(value,key,2000,key==='name');
   }
   for(const key of ['whatsapp','footer_contact_phone'])if(!/^\d{7,15}$/.test(settings[key]))throw fail(400,'Escribe el WhatsApp con código de país y solo números (por ejemplo: 51929688960).');
@@ -100,14 +105,16 @@ async function body(req,limit){
   for await(const chunk of req){size+=chunk.length;if(size>limit)throw fail(413,'El archivo es demasiado grande.');chunks.push(chunk);}
   return Buffer.concat(chunks);
 }
-export async function createShopServer({root=path.dirname(fileURLToPath(import.meta.url)),hosted=false,adminPassword='',publicOrigin='',dataDir,database,catalogId}={}){
+export async function createShopServer({root=path.dirname(fileURLToPath(import.meta.url)),hosted=false,adminPassword='',publicOrigin='',dataDir,database,catalogId,commerceEnabled=false,commerceKey='',mercado=null}={}){
   root=path.resolve(root);
   const storageRoot=hosted?path.resolve(root,dataDir||'public/assets/arcangel-us'):root;
   const catalogFile=path.join(storageRoot,hosted?'catalog.json':'js/catalog.js');
   const backups=path.join(storageRoot,'.backups'),uploadDir=path.join(storageRoot,'uploads');
   const access=createAdminAccess({hosted,adminPassword,publicOrigin});
   const serialize=value=>hosted?jsonText(value):script(value);
-  const store=hosted?await createMySQLStore({database:database||databaseConfig(),catalogId}):null;
+  if(commerceEnabled&&!hosted)throw Error('Las ventas requieren MySQL. Inicia el servidor en modo alojado para probarlas.');
+  const sealer=commerceEnabled?vault(commerceKey):null;
+  const store=hosted?await createMySQLStore({database:database||databaseConfig(),catalogId,commerceEnabled,sealer}):null;
   let state,newStore=false;
   if(!hosted){
   try{const source=await fs.readFile(catalogFile,'utf8');state=hosted?JSON.parse(source):parseCatalog(source);}
@@ -122,7 +129,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   }
   }
   const readState=async()=>store?store.read():structuredClone(state);
-  const requiredState=async()=>{const value=await readState();if(!value)throw fail(503,'El catálogo aún no está configurado. Entra al panel para importar un respaldo o iniciar la tienda.');return value;};
+  const requiredState=async()=>{const value=await readState();if(!value)throw fail(503,'El catálogo aún no está configurado. Entra al panel para importar un respaldo o iniciar la tienda.');return {...value,settings:{...DEFAULT_SETTINGS,...value.settings}};};
   const legacyFile=path.join(storageRoot,'catalog.json');
   const hasLegacy=()=>fs.access(legacyFile).then(()=>true,()=>false);
   async function getImage(relative){
@@ -140,6 +147,8 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   }
   let queue=Promise.resolve();
   const serialized=fn=>{const next=queue.then(fn);queue=next.catch(()=>{});return next;};
+  const payments=createMercadoPago({config:mercado,persistence:store?.commerce?.mercado,publicOrigin,fetcher:mercado?.fetcher});
+  const routeCommerce=commerceRouter({store,access,sealer,readState,body,hosted,publicOrigin,payments});
   async function persist(input,expected){
     const next=validateState(input);
     for(const imagePath of uploadPaths(next)){
@@ -157,7 +166,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   }
   const server=http.createServer(async(req,res)=>{
     const send=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});res.end(JSON.stringify(data));};
-    res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','SAMEORIGIN');res.setHeader('Cache-Control','no-store');
+    res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('X-Frame-Options','SAMEORIGIN');res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','strict-origin-when-cross-origin');
     try{
       const actualPort=server.address()?.port;
       const host=req.headers.host;
@@ -167,6 +176,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(url.pathname.startsWith('/api/')){
         if(req.headers.origin&&!access.sameOrigin(req))throw fail(403,'Origen no permitido.');
         if(req.method==='GET'&&url.pathname==='/api/catalog')return send(200,publicState(await requiredState()));
+        if(await routeCommerce(req,res,url,send))return;
         if(req.method==='GET'&&url.pathname==='/api/admin/session')return send(200,access.status(req));
         if(req.method==='POST'&&url.pathname==='/api/admin/login'){
           if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'Formato no válido.');
@@ -230,13 +240,14 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(relative.split(/[\\/]/).some(part=>part==='.'||part==='..'||part.startsWith('.')))throw fail(404,'No encontrado.');
       if(!relative)relative='index.html';
       if(relative==='admin'||relative==='admin/')relative='admin/index.html';
+      if(relative==='cuenta'||relative==='cuenta/')relative='cuenta/index.html';
       if(relative==='js/catalog.js'){
         const saved=await requiredState();res.writeHead(200,{'Content-Type':MIME['.js']});return res.end(req.method==='HEAD'?undefined:script(publicState(saved)));
       }
       if(relative==='index.html'&&store&&!await readState()){
-        res.writeHead(200,{'Content-Type':MIME['.html']});return res.end(req.method==='HEAD'?undefined:'<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Arcangel US</title><body style="font:18px system-ui;max-width:560px;margin:15vh auto;padding:24px"><h1>Estamos preparando la tienda</h1><p>El catálogo estará disponible cuando termine la configuración.</p><a href="/admin">Administrar tienda</a></body></html>');
+        res.writeHead(200,{'Content-Type':MIME['.html']});return res.end(req.method==='HEAD'?undefined:'<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Arcangel US</title><body style="font:18px system-ui;max-width:560px;margin:15vh auto;padding:24px"><h1>Estamos preparando la tienda</h1><p>El catálogo estará disponible cuando termine la configuración.</p></body></html>');
       }
-      if(relative!=='index.html'&&!/^(admin|css|js|assets|banners|logo|uploads)\//.test(relative))throw fail(404,'No encontrado.');
+      if(relative!=='index.html'&&!/^(admin|cuenta|css|js|assets|banners|logo|uploads)\//.test(relative))throw fail(404,'No encontrado.');
       const file=path.resolve(root,relative);let ext=path.extname(file).toLowerCase();
       if(!file.startsWith(root+path.sep)||!MIME[ext])throw fail(404,'No encontrado.');
       let bytes;
