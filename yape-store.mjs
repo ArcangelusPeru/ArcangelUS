@@ -35,15 +35,33 @@ export async function createYapeStore({pool,transaction,catalogId:cat,sealer}){
   }
   return {
     async publicStatus(){const d=await device();return {enabled:!!d?.enabled,online:!!d?.last_seen&&Date.now()-Number(d.last_seen)<180000};},
-    async status(){const d=await device();return {paired:!!d,enabled:!!d?.enabled,online:!!d?.last_seen&&Date.now()-Number(d.last_seen)<180000,last_seen:d?.last_seen?Number(d.last_seen):null,last_payment:d?.last_payment?Number(d.last_payment):null,phone:d?.phone||'',max_soles:100};},
+    async status(){const d=await device();return {catalog_id:cat,device_id:d?.device_id||'',paired:!!d,enabled:!!d?.enabled,online:!!d?.last_seen&&Date.now()-Number(d.last_seen)<180000,last_seen:d?.last_seen?Number(d.last_seen):null,last_payment:d?.last_payment?Number(d.last_payment):null,phone:d?.phone||'',max_soles:100};},
     async pair(phone){
       if(typeof phone!=='string'||!/^9\d{8}$/.test(phone))throw fail(400,'Escribe los 9 dígitos del número que recibe los yapeos.');
       const id=randomUUID(),secret=secretToken();
       try{await transaction(async db=>{const old=await device(db,true);if(old&&old.phone!==phone)throw fail(409,'Este catálogo ya tiene un Yape receptor. Contacta soporte para cambiarlo sin duplicar pagos.');
         await db.execute('INSERT INTO arcangel_yape_devices(catalog_id,device_id,phone,secret) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE device_id=IF(catalog_id=VALUES(catalog_id),VALUES(device_id),device_id),secret=IF(catalog_id=VALUES(catalog_id),VALUES(secret),secret),enabled=IF(catalog_id=VALUES(catalog_id),FALSE,enabled),last_seen=IF(catalog_id=VALUES(catalog_id),NULL,last_seen),last_payment=IF(catalog_id=VALUES(catalog_id),NULL,last_payment)',[cat,id,phone,sealer.seal(secret,`${cat}:yape-device`)]);
-        const row=await device(db);if(!row||row.device_id!==id)throw fail(409,'Ese número ya está vinculado a otro catálogo. Usa solo el entorno publicado para pagos reales.');
+        const row=await device(db);if(!row||row.device_id!==id)throw fail(409,'Ese número ya está vinculado a otro catálogo. Abre Yape automático en el panel donde lo vinculaste y usa Liberar número. Después genera el código en la tienda publicada.');
       });}catch(e){if(e.code==='ER_DUP_ENTRY')throw fail(409,'Ese número ya está vinculado a otro catálogo.');throw e;}
       return {device_id:id,secret};
+    },
+    async release(input){
+      const expected=requestId(input.device_id);
+      if(typeof input.phone!=='string'||!/^9\d{8}$/.test(input.phone))throw fail(400,'Escribe el número de Yape que deseas liberar.');
+      if(input.confirmed!==true)throw fail(400,'Confirma que deseas dejar de recibir nuevos pagos en este catálogo.');
+      return transaction(async db=>{
+        // Lock the same row as payment ingestion/crediting. A concurrent callback must
+        // commit before release or fail its device check after release, never use stale credentials.
+        const d=await device(db,true);
+        if(!d)return {released:true};
+        if(d.device_id!==expected||d.phone!==input.phone)throw fail(409,'La vinculación cambió o el número no coincide. Actualiza el panel antes de liberar.');
+        const [[pending]]=await db.execute("SELECT claim_id FROM arcangel_yape_claims WHERE catalog_id=? AND status NOT IN ('approved','rejected') LIMIT 1 FOR UPDATE",[cat]);
+        if(pending)throw fail(409,'Hay solicitudes Yape pendientes, vencidas o por revisar. Resuélvelas en este panel antes de liberar el número. Si alguien ya pagó, verifica el ingreso; no rechaces la solicitud solo para continuar.');
+        // Retain all events, claims and ledger rows. Their global payment fingerprints
+        // prevent a payment already received here from being credited in another catalog.
+        await db.execute('DELETE FROM arcangel_yape_devices WHERE catalog_id=? AND device_id=?',[cat,expected]);
+        return {released:true};
+      });
     },
     async enable(enabled){if(typeof enabled!=='boolean')throw fail(400,'Estado no válido.');return transaction(async db=>{const d=await device(db,true);if(!d)throw fail(409,'Vincula primero la app.');if(enabled&&(!d.last_payment||!d.last_seen||Date.now()-Number(d.last_seen)>180000))throw fail(409,'Primero recibe una notificación de pago reconocida en la app y comprueba el importe en Yape.');await db.execute('UPDATE arcangel_yape_devices SET enabled=? WHERE catalog_id=?',[enabled,cat]);return {enabled};});},
     async receive(headers,raw){
@@ -54,7 +72,7 @@ export async function createYapeStore({pool,transaction,catalogId:cat,sealer}){
       let data;try{data=JSON.parse(raw.toString('utf8'));}catch{throw fail(400,'JSON no válido.');}
       if(!data||!['heartbeat','payment'].includes(data.type))throw fail(400,'Evento no válido.');
       return transaction(async db=>{
-        const latest=await device(db,true);if(latest.device_id!==d.device_id)throw fail(401,'La vinculación cambió.');
+        const latest=await device(db,true);if(!latest||latest.device_id!==d.device_id)throw fail(401,'La vinculación cambió.');
         // A revoked Android permission must not keep the payment method online.
         if(data.type==='heartbeat'){await db.execute('UPDATE arcangel_yape_devices SET last_seen=? WHERE catalog_id=?',[data.listener_ready===true?Date.now():null,cat]);return {ok:true};}
         if(data.package!==YAPE_PACKAGE||typeof data.notification_key!=='string'||data.notification_key.length>300||!data.notification_key||!Number.isSafeInteger(data.posted_at)||data.posted_at>Date.now()+120000||data.posted_at<Date.now()-86400000||typeof data.text!=='string'||data.text.length>600)throw fail(400,'Notificación no válida o demasiado antigua.');

@@ -1,4 +1,4 @@
-# Yape automático · piloto 1.4.0
+# Yape automático · piloto 1.4.1
 
 La app privada **Arcangel · Yape** se instala en el Android del dueño, donde llegan los pagos. Los clientes usan **Mi cuenta → Mi billetera → PAGOS EN AUTOMÁTICO SOLO PARA YAPE**. No necesitan instalar una app.
 
@@ -11,9 +11,9 @@ Esta es una integración privada basada en notificaciones; no es una API oficial
 ## 1. Actualizar GoDaddy
 
 1. Descarga un respaldo del catálogo desde tu panel y exporta también la base MySQL desde **GoDaddy → Base de datos → Exportar SQL**. El respaldo de catálogo no contiene billeteras, pagos ni clientes.
-2. Descomprime **arcangel-us-actualizacion-yape-v1.4.0.zip**. Actualiza el código de tu repositorio/proyecto con **todo su contenido**, conservando la misma estructura de carpetas. No subas la APK a GoDaddy.
+2. Descomprime **arcangel-us-actualizacion-yape-v1.4.1.zip**. Actualiza el código de tu repositorio/proyecto con **todo su contenido**, conservando la misma estructura de carpetas. No subas la APK a GoDaddy.
 3. Mantén los secretos existentes: `DB_*`, `COMMERCE_ENABLED=true`, `COMMERCE_KEY`, `ADMIN_PASSWORD` y el `SHOP_CATALOG_ID` de producción. **No cambies COMMERCE_KEY ni el identificador del catálogo.**
-4. Configura `APP_URL=https://arcangelpro.com` en el entorno publicado. Es necesario para generar una vinculación HTTPS. Usa el dominio de vista previa correspondiente si pruebas en otro entorno.
+4. Configura `APP_URL=https://arcangelpro.com` en el entorno publicado. Es necesario para generar una vinculación HTTPS. Genera el código desde **https://arcangelpro.com/admin**. La vista previa privada de GoDaddy requiere iniciar sesión; Android no comparte la sesión de tu navegador y puede quedar bloqueado antes de llegar a la tienda. No uses ese entorno para vincular el teléfono receptor.
 5. Publica la actualización usando el mismo flujo de GoDaddy que ya utiliza la tienda. El arranque crea las tablas nuevas; no importes un SQL vacío ni inicialices nuevamente el catálogo.
 6. Verifica la tienda y entra a `/admin → Ventas → Yape automático`. El método empieza desactivado y se conserva así hasta que tú lo actives.
 
@@ -21,7 +21,7 @@ El ZIP no incluye catálogo, imágenes, datos de clientes, tokens, credenciales 
 
 ## 2. Instalar y vincular el Android
 
-1. Copia **Arcangel-Yape-piloto-v0.1.0.apk** a tu Android (Android 8 o posterior) e instálala. Es una app privada del proyecto, no está publicada en Google Play.
+1. Copia **Arcangel-Yape-piloto-v0.1.1.apk** a tu Android (Android 8 o posterior) e instálala. Si tienes la versión anterior, actualiza sobre ella, sin desinstalar ni borrar datos, para conservar la vinculación y los pagos pendientes. Es una app privada del proyecto, no está publicada en Google Play.
 2. En **Configurar web**, confirma que el QR configurado corresponde a tu Yape y que el titular es correcto. Este QR también es el que utiliza la revisión manual existente.
 3. En **Ventas → Yape automático → Vincular mi celular Android**, introduce el número real que recibe los pagos, de 9 dígitos, y genera el código de vinculación.
 4. Pégalo en la app y pulsa **Vincular mi tienda**. El código permite enviar notificaciones de pago: consérvalo privado y no lo compartas con clientes. Se guarda cifrado en Android y en el servidor. Nunca introduzcas tu contraseña de Yape.
@@ -32,6 +32,18 @@ El ZIP no incluye catálogo, imágenes, datos de clientes, tokens, credenciales 
 Solo un catálogo de la misma base de datos puede vincular un número receptor. Usa **producción** para dinero real. No conectes el mismo teléfono a otra base de datos independiente: esa segunda base no comparte la protección contra duplicados. Si reinstalas o rotas la vinculación, utiliza el mismo número real. La nueva vinculación desactiva automáticamente el método.
 
 ## 3. Prueba real antes de activar
+
+### Si el número quedó vinculado a vista previa
+
+1. Actualiza el proyecto con el ZIP 1.4.1 y pulsa **Actualizar vista previa**. Conserva los secretos de cada entorno: especialmente `SHOP_CATALOG_ID` y `COMMERCE_KEY`.
+2. Entra al **panel de vista previa → Ventas → Yape automático**. Abre **Liberar número de este catálogo**, escribe el número receptor, revisa la casilla y pulsa **Liberar número**. Hazlo en el catálogo donde creaste la primera vinculación, no en el publicado donde aparece el error.
+3. Si hay solicitudes pendientes, vencidas o por revisar, el servidor impide liberar el número hasta que las atiendas. Comprueba en Yape los ingresos reales; no rechaces pagos solo para desbloquear el botón. Revisa también la cola de la app: si tiene notificaciones pendientes, no borres ni reinstales la app para sortear el bloqueo.
+4. Publica la versión actualizada. En **Secretos → Publicar**, `APP_URL` debe ser `https://arcangelpro.com`. Guarda y reinicia la aplicación publicada si cambiaste ese valor.
+5. Abre **https://arcangelpro.com/admin → Ventas → Yape automático** y genera un código nuevo para el mismo número. Pégalo en la APK y comprueba la conexión.
+
+Liberar el número elimina únicamente su vinculación en ese catálogo. No borra clientes, saldos, movimientos ni notificaciones recibidas; tampoco los mueve entre catálogos. La protección compartida contra pagos duplicados permanece. El código anterior deja de funcionar y el método nuevo permanece desactivado hasta verificar la conexión y un pago reconocido.
+
+### Comprobación en el celular
 
 1. Con la app vinculada pero el método aún desactivado, recibe un pago pequeño y comprueba el ingreso directamente en los movimientos de Yape.
 2. Debe aparecer en **Notificaciones recibidas** con el primer nombre y el importe exactos. El estado del celular debe indicar **conectado**. El formato probado es: `Willy Col* te envió un pago por S/15. El cód. de seguridad es: 812`.
@@ -60,6 +72,8 @@ Los textos originales y las claves del teléfono se guardan cifrados con `COMMER
 
 ## Fallos y límites del piloto
 
+- Al pulsar **Vincular mi tienda**, el campo se vacía después de guardar el código por privacidad. Eso no confirma conexión. La versión 0.1.1 muestra la tienda configurada y el estado junto al botón. **Conectado a la tienda. Falta activar el acceso a notificaciones** indica que el servidor respondió pero todavía falta el permiso; **Conectado. Escuchando pagos de Yape** confirma ambos pasos.
+- Si la tienda configurada es una dirección de vista previa, genera la vinculación en la tienda publicada. Si el panel indica que el número ya está vinculado a otro catálogo, sigue los pasos de **Liberar número** de esta guía. Conserva `SHOP_CATALOG_ID` y `COMMERCE_KEY`.
 - La app reintenta al recuperar conexión y conserva la cola local cifrada. Puedes consultar **Ver notificaciones no enviadas**; las demasiado antiguas se retienen para revisión.
 - Los pagos anteriores a una solicitud no se acreditan automáticamente. Un teléfono con la hora incorrecta puede impedir la validación. No reenvíes notificaciones editadas.
 - Un cambio de formato de Yape requiere actualizar el reconocimiento. No hay extracción de datos desde la pantalla ni simulación de notificaciones en producción.
@@ -69,7 +83,7 @@ Los textos originales y las claves del teléfono se guardan cifrados con `COMMER
 
 ## Material técnico
 
-Servidor: `yape-store.mjs`, rutas `/api/yape/device` y `/api/shop/yape/*`; controles del dueño bajo `/api/admin/commerce/yape/*`. App: código fuente en el ZIP independiente `arcangel-yape-android-fuentes-v0.1.0.zip`. No contiene claves de firma ni credenciales.
+Servidor: `yape-store.mjs`, rutas `/api/yape/device` y `/api/shop/yape/*`; controles del dueño bajo `/api/admin/commerce/yape/*`. App: código fuente en el ZIP independiente `arcangel-yape-android-fuentes-v0.1.1.zip`. No contiene claves de firma ni credenciales.
 
 La clave de firma de la APK se conserva localmente en `work/yape-signing-private` en este proyecto. Necesitarás esa misma clave para instalar futuras actualizaciones sobre la app; no la subas al repositorio público ni a GoDaddy.
 
