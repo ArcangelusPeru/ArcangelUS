@@ -95,3 +95,5 @@
 /* Verification shortcut above the customer's purchases. */
 .verify-code-banner{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;min-height:42px;margin:15px 0 18px;padding:10px 16px;border:1px solid #c9576f;border-radius:10px;background:linear-gradient(110deg,#8a263c,#d63b5a);color:#fff!important;font:800 12px/1.35 'DM Sans',sans-serif;letter-spacing:.08em;text-decoration:none!important;box-shadow:0 0 18px #af385f99,0 4px 0 #2b0b16;transition:filter .15s,transform .15s,box-shadow .15s}
 .verify-code-banner:hover{filter:brightness(1.16);transform:translateY(-1px);box-shadow:0 0 25px #e45b72cc,0 5px 0 #2b0b16}.verify-code-banner .portal-icon{width:17px;height:17px;stroke-width:2.6}
+
+.purchase-account-code{display:block;color:#ff969e;font-size:.72rem;font-weight:700;letter-spacing:.05em;margin:.35rem 0}

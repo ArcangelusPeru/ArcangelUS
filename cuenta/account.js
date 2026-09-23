@@ -214,11 +214,12 @@
       const fact=(label,value,symbol,kind='')=>`<div class="order-fact ${kind}"><dt>${esc(label)}</dt><dd>${icon(symbol)}<span>${esc(value)}</span></dd></div>`;
       const credential=(key,label,value,symbol,secret=false)=>`<div class="order-credential">${icon(symbol)}<div><span class="order-field-label">${esc(label)}</span><strong data-credential-value="${key}">${secret?'••••••••':esc(value||'No asignado')}</strong></div><div class="order-field-actions">${secret?`<button type="button" class="order-icon-button" data-reveal-password aria-label="Mostrar contraseña" title="Mostrar contraseña" aria-pressed="false">${icon('eye')}</button>`:''}${value||secret?`<button type="button" class="order-icon-button" data-copy-field="${key}" aria-label="Copiar ${esc(label.toLocaleLowerCase('es'))}" title="Copiar ${esc(label.toLocaleLowerCase('es'))}">${icon('copy')}</button>`:''}</div></div>`;
       const phone=String(config.whatsapp||'').replace(/\D/g,'');
-      const supportHref=phone?'https://wa.me/'+phone+'?text='+encodeURIComponent('Hola, necesito ayuda con mi compra #'+reference+' de '+o.product_name+'.'):'';
+      const supportHref=phone?'https://wa.me/'+phone+'?text='+encodeURIComponent('Hola, necesito ayuda con mi compra #'+reference+' de '+o.product_name+(o.account_code?' · Cuenta '+o.account_code:'')+'.'):'';
       dialog.classList.add('order-detail-dialog');$('#orderInfoTitle').textContent='Detalles del Pedido: '+reference;
       box.innerHTML=`<div class="order-product"><div class="order-product-logo"><img src="${esc(asset(o.product_logo||'logo/arcangel-us.png'))}" alt="Logo de ${esc(o.product_name)}"></div><div><h3>${esc(o.product_name)}</h3><p>${esc(o.product_brand||o.product_type||'Cuenta de la tienda')}</p></div></div>
         <section class="order-detail-section"><h3>Contacto y soporte</h3><div class="order-contact-box">${supportHref?`<a class="order-contact-button" href="${esc(supportHref)}" target="_blank" rel="noopener noreferrer">${icon('support')} CONTACTAR POR WHATSAPP</a>`:`<button type="button" class="order-contact-button" data-detail-support>${icon('support')} CONTACTAR POR WHATSAPP</button>`}</div></section>
         <section class="order-detail-section"><h3>Detalles del Pedido</h3><dl class="order-facts-grid">
+          ${o.account_code?fact('Código de cuenta',o.account_code,'key'):''}
           ${fact('Fecha de creación',createdLabel(o.created_at),'calendar')}
           ${fact('Fecha de expiración',longDay(a?.expires_on),'calendar',expired(o)?'is-expired':'')}
           ${fact('Duración',o.product_duration||'Sin especificar','clock')}
@@ -261,7 +262,7 @@
     function draw(){
       filterRoot.innerHTML=chips.map(([key,label])=>`<button type="button" class="purchase-chip ${status===key?'active':''}" data-purchase-filter="${key}" aria-pressed="${status===key}">${label}<span>${orders.filter(o=>matches(o,key)).length}</span></button>`).join('');
       filterRoot.querySelectorAll('button').forEach(b=>b.onclick=()=>{status=b.dataset.purchaseFilter;page=1;draw();});
-      const filtered=orders.filter(o=>matches(o,status)&&[o.product_name,o.order_id,o.account?.username,o.account?.profile].join(' ').toLocaleLowerCase('es').includes(query));
+      const filtered=orders.filter(o=>matches(o,status)&&[o.product_name,o.order_id,o.account_code,o.account?.username,o.account?.profile].join(' ').toLocaleLowerCase('es').includes(query));
       const pages=Math.max(1,Math.ceil(filtered.length/size));page=Math.max(1,Math.min(page,pages));const start=(page-1)*size;
       viewState.set('compras',{query,status,page,size});
       list.innerHTML=`<div class="purchase-card-grid">${filtered.slice(start,start+size).map(o=>{
@@ -273,6 +274,7 @@
             <div class="purchase-platform-logo"><img src="${esc(asset(o.product_logo||'logo/arcangel-us.png'))}" alt="Logo de ${esc(o.product_name)}" loading="lazy"></div>
             <div class="purchase-card-content">
               <h3>${esc(o.product_name)}</h3>
+              <span class="purchase-account-code">${esc(o.account_code||'')}</span>
               <p class="purchase-email">${esc(a?.username||(o.status==='pending_manual'?'Preparando tu cuenta':'Saldo devuelto'))}</p>
               <time datetime="${esc(new Date(o.created_at).toISOString())}">${esc(createdLabel(o.created_at))}</time>
               <div class="purchase-badges">${badge(o.status==='delivered'?'check':'history',o.status==='delivered'?'Completado':statuses[o.status]||o.status,esc(o.status))}${a?badge('clock',remaining(o),expired(o)?'expired':'validity'):''}${a&&(o.product_type||a.profile)?badge('device',o.product_type||a.profile,'profile-badge'):''}</div>
