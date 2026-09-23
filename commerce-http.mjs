@@ -1,10 +1,12 @@
-import { fail, email, text, equalSecret } from './commerce-security.mjs';
+import { fail, email, username, text, equalSecret } from './commerce-security.mjs';
+
+export const customerToken=(req,cat)=>String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('arcangel_user_'+cat+'='))?.slice(('arcangel_user_'+cat+'=').length)||'';
 
 export function commerceRouter({store,access,sealer,readState,body,hosted,publicOrigin,payments}){
   const commerce=store?.commerce,cat=store?.catalogId||'local',cookieName='arcangel_user_'+cat;
-  const cookie=req=>String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith(cookieName+'='))?.slice(cookieName.length+1)||'';
+  const cookie=req=>customerToken(req,cat);
   const csrf=raw=>sealer.mac(`${cat}:csrf:${raw}`);
-  const setCookie=(req,res,raw,age=7*86400)=>{const secure=hosted&&(publicOrigin?publicOrigin.startsWith('https:'):req.socket.encrypted||String(req.headers['x-forwarded-proto']||'').split(',')[0].trim()==='https');res.setHeader('Set-Cookie',`${cookieName}=${raw}; Path=/api/shop; HttpOnly; SameSite=Strict; Max-Age=${age}${secure?'; Secure':''}`);};
+  const setCookie=(req,res,raw,age=7*86400)=>{const secure=hosted&&(publicOrigin?publicOrigin.startsWith('https:'):req.socket.encrypted||String(req.headers['x-forwarded-proto']||'').split(',')[0].trim()==='https'),flags=`HttpOnly; SameSite=Strict${secure?'; Secure':''}`;res.setHeader('Set-Cookie',[`${cookieName}=${raw}; Path=/; ${flags}; Max-Age=${age}`,`${cookieName}=; Path=/api/shop; ${flags}; Max-Age=0`]);};
   async function input(req,limit=128*1024){if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'Envía los datos como JSON.');let result;try{result=JSON.parse((await body(req,limit)).toString());}catch(error){if(error.status)throw error;throw fail(400,'Datos no válidos.');}if(!result||typeof result!=='object'||Array.isArray(result))throw fail(400,'Datos no válidos.');return result;}
   const requireUser=async req=>{const user=await commerce.userFromToken(cookie(req));if(!user)throw fail(401,'Inicia sesión para continuar.');return user;};
   return async(req,res,url,send)=>{
@@ -35,6 +37,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/yape/activity')return done(200,{...await commerce.yape.activity(Object.fromEntries(url.searchParams),url.searchParams.get('export')==='1'),device:await commerce.yape.status()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/yape/announcements')return done(200,await commerce.yape.announcements(Object.fromEntries(url.searchParams)));
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/reports')return done(200,{reports:await commerce.reports()});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/replacements')return done(200,{replacements:await commerce.replacements()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/inventory')return done(200,{items:await commerce.inventory(text(url.searchParams.get('product_id')||'','el producto',100,false))});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/customers')return done(200,{customers:await commerce.customers(url.searchParams.get('search')||'',url.searchParams.get('status')||'all'),counts:await commerce.customerCounts()});
       if(req.method!=='POST')throw fail(405,'Método no permitido.');
@@ -59,11 +62,15 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
         case '/api/admin/commerce/inventory/retire':return done(200,await commerce.retireInventory(data.inventory_id,data.state));
         case '/api/admin/commerce/deliver':return done(200,await commerce.deliverOrder(data.order_id,data.delivery));
         case '/api/admin/commerce/order/read':return done(200,await commerce.orderDetails(data.order_id));
-        case '/api/admin/commerce/order/update':return done(200,await commerce.updateOrder(data.order_id,data.delivery,data.revision));
+      case '/api/admin/commerce/order/update':return done(200,await commerce.updateOrder(data.order_id,data.delivery,data.revision));
+        case '/api/admin/commerce/replacements':return done(200,{replacements:await commerce.replacements()});
         case '/api/admin/commerce/report/update':return done(200,await commerce.updateReport(data.report_id,data.status,data.reply,data.revision));
         case '/api/admin/commerce/refund':return done(200,await commerce.refundOrder(data.order_id));
         case '/api/admin/commerce/customer':return done(200,await commerce.blockUser(data.user_id,data.blocked));
-        case '/api/admin/commerce/customer/create':return done(201,await commerce.createCustomer(data.email,data.password));
+        case '/api/admin/commerce/customer/create':return done(201,await commerce.createCustomer(data.username,data.email,data.password,data.role));
+        case '/api/admin/commerce/customer/password':return done(200,await commerce.changeCustomerPassword(data.user_id,data.password));
+        case '/api/admin/commerce/customer/balance':return done(200,await commerce.addCustomerBalance(data.user_id,data));
+        case '/api/admin/commerce/customer/role':return done(200,await commerce.setCustomerRole(data.user_id,data.role,data.username));
         case '/api/admin/commerce/customer/recovery':return done(200,await commerce.customerRecovery(data.user_id));
         case '/api/admin/commerce/customer/recovery/generate':return done(200,await commerce.customerRecovery(data.user_id,true));
         case '/api/admin/commerce/customer/delete':return done(200,await commerce.deleteCustomer(data.user_id,data.confirm_email));
@@ -74,6 +81,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
     if(!commerce)throw fail(503,'Las compras con saldo aún no están activadas.');
     if(req.method==='GET'){
       const user=await requireUser(req);
+      if(['/api/shop/session','/api/shop/me'].includes(url.pathname))setCookie(req,res,cookie(req));
       if(url.pathname==='/api/shop/session')return done(200,{user});
       if(url.pathname==='/api/shop/yape/current')return done(200,{claim:await commerce.yape.current(user.id),...await commerce.yape.publicStatus()});
       if(url.pathname==='/api/shop/me')return done(200,{user,csrf:csrf(cookie(req)),orders:await commerce.orders(user.id),movements:await commerce.movements(user.id),reports:await commerce.reports(user.id)});
@@ -84,13 +92,14 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
     const data=await input(req);
     const action=url.pathname.split('/').pop();
     if(['/api/shop/register','/api/shop/login','/api/shop/recover'].includes(url.pathname)){
-      const address=email(data.email);
+      const identifier=action==='login'?text(data.identifier??data.email,'el usuario o correo',254):data.email;
+      const address=action==='login'&&!identifier.includes('@')?username(identifier):email(identifier);
       // Per-account and bounded per-connection limits persist across restarts.
       await commerce.limit(`auth:${address}`,15);
       await commerce.limit(`connection:${req.socket.remoteAddress}`,150);
       if(action==='register')await commerce.limit('registrations',30,3600);
       if(!await readState())throw fail(503,'La tienda todavía no está configurada.');
-      const result=action==='register'?await commerce.register(address,data.password):action==='recover'?await commerce.recover(address,data.recovery_code,data.password):await commerce.login(address,data.password);
+      const result=action==='register'?await commerce.register(data.username,address,data.password):action==='recover'?await commerce.recover(address,data.recovery_code,data.password):await commerce.login(data.identifier||data.email,data.password);
       setCookie(req,res,result.token);return done(action==='register'?201:200,{user:result.user,csrf:csrf(result.token),...(result.recovery_code?{recovery_code:result.recovery_code}:{})});
     }
     const user=await requireUser(req);if(!equalSecret(req.headers['x-shop-csrf'],csrf(cookie(req))))throw fail(403,'Recarga tu cuenta para continuar.');
@@ -115,6 +124,8 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
         return done(200,await payments.status(user,data.id));
       case '/api/shop/purchase':return done(200,await commerce.purchase(user.id,data));
       case '/api/shop/order':return done(200,{delivery:await commerce.orderSecret(user.id,data.order_id)});
+      case '/api/shop/replace':return done(200,await commerce.replaceAccount(user.id,data));
+      case '/api/shop/renew':return done(200,await commerce.renewOrder(user.id,data));
       case '/api/shop/reports':await commerce.limit('reports:'+user.id,20,3600);return done(201,await commerce.reportAccount(user.id,data));
       default:throw fail(404,'Ruta no encontrada.');
     }

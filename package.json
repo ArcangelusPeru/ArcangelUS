@@ -1,6 +1,6 @@
 {
   "name": "arcangel-us-tienda",
-  "version": "1.6.1",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "main": "start.cjs",
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "node start.cjs",
-    "build": "node --check start.cjs && node --check server.mjs && node --check hosting.mjs && node --check mysql-store.mjs && node --check backup.mjs && node --check commerce-security.mjs && node --check commerce-store.mjs && node --check commerce-http.mjs && node --check generate-commerce-key.cjs && node --check admin/admin.js && node --check admin/commerce.js && node --check admin/alerts.js && node --check cuenta/account.js && node --check js/index.js && node --check js/commerce.js && node --check yape-store.mjs && node --check admin/yape.js && node --check cuenta/yape.js && node --check mercado-pago.mjs && node --check mercado-store.mjs && node --check cuenta/mercado.js && node --check yape-reports.mjs && node --check admin/yape-activity.js && node --check admin/yape-voice.js",
+    "build": "node --check start.cjs && node --check server.mjs && node --check hosting.mjs && node --check mysql-store.mjs && node --check backup.mjs && node --check commerce-security.mjs && node --check commerce-store.mjs && node --check commerce-http.mjs && node --check generate-commerce-key.cjs && node --check admin/admin.js && node --check admin/commerce.js && node --check admin/alerts.js && node --check cuenta/account.js && node --check js/index.js && node --check js/commerce.js && node --check yape-store.mjs && node --check admin/yape.js && node --check cuenta/yape.js && node --check mercado-pago.mjs && node --check mercado-store.mjs && node --check cuenta/mercado.js && node --check yape-reports.mjs && node --check admin/yape-activity.js && node --check admin/yape-voice.js && node --check pricing.mjs",
     "start": "node start.cjs"
   },
   "dependencies": {

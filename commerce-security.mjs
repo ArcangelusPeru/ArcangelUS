@@ -9,6 +9,7 @@ export function text(value,label,max=200,required=true){
   return value.trim();
 }
 export function email(value){const result=text(value,'el correo',254).toLowerCase();if(!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(result))throw fail(400,'Escribe un correo válido.');return result;}
+export function username(value){const result=text(value,'el usuario',40).toLowerCase();if(!/^[a-z0-9][a-z0-9._-]{1,38}[a-z0-9]$/.test(result))throw fail(400,'El usuario debe tener entre 3 y 40 caracteres, empezar y terminar con una letra o número y solo usar letras, números, punto, guion o guion bajo.');return result;}
 export function cents(value){if(!Number.isSafeInteger(value)||value<1||value>100000000)throw fail(400,'El importe debe estar entre S/ 0.01 y S/ 1,000,000.');return value;}
 export function requestId(value){if(typeof value!=='string'||! /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value))throw fail(400,'Identificador de operación no válido. Recarga la página.');return value.toLowerCase();}
 export function soles(value){const valueText=String(value);if(!/^\d{1,7}(\.\d{1,2})?$/.test(valueText))throw fail(400,'Usa un importe con un máximo de dos decimales.');return cents(Math.round(Number(valueText)*100));}
@@ -39,7 +40,7 @@ export function vault(encoded){
 export function delivery(value){
   if(!value||typeof value!=='object')throw fail(400,'Introduce los datos de entrega.');
   if(value.password!==undefined&&(typeof value.password!=='string'||value.password.length>500))throw fail(400,'Revisa la contraseña de entrega.');
-  const result={username:text(value.username||'','el usuario',300,false),password:value.password||'',notes:text(value.notes||'','las instrucciones',5000,false)};
+  const result={username:text(value.username||'','el usuario',300,false),password:value.password||'',notes:text(value.notes||'','las instrucciones',5000,false),renewable:value.renewable===true||value.renewable==='true'||value.renewable==='on'};
   for(const [field,label,max] of [['url','la URL',1000],['profile','el perfil',100],['pin','el PIN',100]]){
     const content=text(value[field]??'',label,max,false);if(content)result[field]=content;
   }
