@@ -54,13 +54,12 @@ El cliente solo verá el QR, el campo **Monto que pagaste** y el botón **Solici
 
 ### Elegir cómo se compra cada producto
 
-En **Productos → Editar**, elige:
+En **Productos → Editar → Canales de venta**, marca los botones que quieras mostrar:
 
-- **Solo WhatsApp:** conserva la venta habitual por WhatsApp.
-- **Entrega manual:** el cliente paga con saldo; tú completas la entrega en Ventas → Pedidos. Si indicas unidades se descuenta una al comprar. Un campo de unidades vacío permite pedidos sin límite numérico.
-- **Entrega automática:** el cliente paga con saldo y recibe una cuenta disponible del inventario. Las unidades se calculan a partir de las cuentas cargadas; no se fijan escribiendo un número.
+- **COMPRAR ACÁ:** compra con saldo y entrega automática de una cuenta del inventario.
+- **COMPRAR POR WHATSAPP:** contacto directo para comprar por WhatsApp.
 
-Los productos existentes empiezan sin compras con saldo hasta que selecciones su modalidad. La tienda muestra **COMPRAR ACÁ** y **COMPRAR POR WHATSAPP**; el primero solo permite comprar productos habilitados y disponibles. El botón de WhatsApp usa fondo verde, icono y el mismo tamaño para destacar ambas opciones.
+Puedes habilitar uno, ambos o ninguno. La misma selección se aplica en las tarjetas y en «Ver más». La entrega manual fue retirada. Las ventas anteriores se conservan en **Ventas → Ventas realizadas**, con edición de cuentas vendidas y devolución de saldo.
 
 ### Cargar cuentas y controlar stock
 
@@ -122,7 +121,7 @@ La columna nueva se añade automáticamente al iniciar. Conserva `COMMERCE_KEY` 
 
 ### Pedidos y clientes
 
-En **Ventas → Pedidos**, las compras manuales quedan «Por entregar». Completa los datos y pulsa «Entregar al cliente». En **Ventas → Clientes** puedes buscar por correo, consultar saldo y filtrar usuarios activos, suspendidos o eliminados.
+En **Ventas → Ventas realizadas**, las compras manuales quedan «Por entregar». Completa los datos y pulsa «Entregar al cliente». En **Ventas → Clientes** puedes buscar por correo, consultar saldo y filtrar usuarios activos, suspendidos o eliminados.
 
 «Devolver saldo» acredita el importe de una compra en la billetera de la tienda. No envía dinero por Yape/Plin. Una cuenta ya entregada no se pone otra vez en venta; un pedido manual cancelado antes de la entrega repone la unidad reservada cuando corresponde.
 
@@ -131,7 +130,7 @@ Los avisos de recargas se actualizan automáticamente. Usa **Actualizar ventas**
 ### Editar cuentas vendidas y entregas manuales (1.3.6)
 
 - **Ventas → Inventario de cuentas → Gestionar → Editar cuenta:** permite corregir datos de cuentas vendidas aquí o por WhatsApp, además de las disponibles.
-- **Ventas → Pedidos → Editar cuenta vendida:** sirve para cuentas ya entregadas, incluidas entregas manuales. Puedes cambiar correo, contraseña, perfil, PIN, URL, instrucciones y fechas.
+- **Ventas → Ventas realizadas → Editar cuenta vendida:** sirve para cuentas ya entregadas, incluidas entregas manuales. Puedes cambiar correo, contraseña, perfil, PIN, URL, instrucciones y fechas.
 - El comprador recibe los datos actualizados en **Mis cuentas y compras** al pulsar **Actualizar**. **Ver** y **Copiar datos** solicitan la contraseña vigente al servidor. La edición desde Pedidos y desde Inventario mantiene ambas copias sincronizadas para ventas de la tienda.
 - Editar no genera otra venta, no cambia el importe ni saldo y no devuelve la cuenta al stock. Los pedidos con saldo devuelto no se reabren ni vuelven a exponer la entrega al cliente.
 - Si otra ventana editó o vendió la cuenta después de abrir el formulario, cancela y vuelve a abrirla para trabajar con los datos actuales.

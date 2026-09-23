@@ -222,19 +222,14 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
         const [old]=await query(db,'SELECT * FROM arcangel_orders WHERE catalog_id=? AND order_id=? FOR UPDATE',[id]);
         if(old){if(old.user_id!==userId||old.product_id!==productId||Number(old.amount_cents)!==expected)throw fail(409,'La operación ya existe con otros datos.');return {order:orderView(old),balance_cents:Number(user.balance_cents)};}
         const product=snapshot.data.products.find(p=>p.id===productId);
-        if(!product||!product.active||!['manual','automatic'].includes(product.checkout_mode))throw fail(409,'Este producto no admite compras con saldo.');
+        if(!product||!product.active||product.checkout_mode!=='automatic')throw fail(409,'Este producto no admite compras con saldo.');
         const amount=soles(priceForRole(product,user.role));if(amount!==expected)throw fail(409,'El precio cambió. Revisa el precio y confirma nuevamente.');
         if(product.out_of_stock||product.stock_quantity===0)throw fail(409,'Producto agotado.');
         if(Number(user.balance_cents)<amount)throw fail(402,'Saldo insuficiente. Recarga antes de comprar.');
-        let inventory=null,secret=null;
-        if(product.checkout_mode==='automatic'){
-          [inventory]=await query(db,"SELECT * FROM arcangel_inventory WHERE catalog_id=? AND product_id=? AND state='available' ORDER BY created_at,inventory_id LIMIT 1 FOR UPDATE",[productId]);
-          if(!inventory)throw fail(409,'No quedan cuentas disponibles.');
-          secret=sealer.seal(sealer.open(inventory.secret,`${cat}:inventory:${inventory.inventory_id}`),`${cat}:order:${id}`);
-        }
-        const reserved=product.checkout_mode==='manual'&&Number.isInteger(product.stock_quantity);
-        if(reserved){product.stock_quantity--;product.out_of_stock=product.stock_quantity===0;}
-        const status=inventory?'delivered':'pending_manual';
+        const [inventory]=await query(db,"SELECT * FROM arcangel_inventory WHERE catalog_id=? AND product_id=? AND state='available' ORDER BY created_at,inventory_id LIMIT 1 FOR UPDATE",[productId]);
+        if(!inventory)throw fail(409,'No quedan cuentas disponibles.');
+        const secret=sealer.seal(sealer.open(inventory.secret,`${cat}:inventory:${inventory.inventory_id}`),`${cat}:order:${id}`);
+        const reserved=false,status='delivered';
         await db.execute('UPDATE arcangel_users SET balance_cents=balance_cents-? WHERE catalog_id=? AND user_id=?',[amount,cat,userId]);
         await query(db,'INSERT INTO arcangel_orders(catalog_id,order_id,user_id,product_id,product_name,amount_cents,delivery_mode,status,inventory_id,delivery_secret,stock_reserved) VALUES(?,?,?,?,?,?,?,?,?,?,?)',[id,userId,productId,product.name,amount,product.checkout_mode,status,inventory?.inventory_id||null,secret,reserved]);
         await query(db,"INSERT INTO arcangel_ledger(catalog_id,entry_id,user_id,kind,amount_cents,status,reference,note) VALUES(?,?,?,'purchase',?,'approved',?,?)",[randomUUID(),userId,-amount,'purchase:'+id,product.name]);
@@ -257,7 +252,7 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
           const d=delivery(sealer.open(row.delivery_secret,`${cat}:order:${row.order_id}`));
           account={username:d.username,url:d.url||'',profile:d.profile||'',pin:d.pin||'',notes:d.notes,has_password:!!d.password,starts_on:d.starts_on||'',expires_on:d.expires_on||'',renewable:!!d.renewable};
         }
-        return {...orderView(row),product_logo:product?.logo_url||product?.banner_url||'',renewal_price_cents:product&&customer?soles(priceForRole(product,customer.role)):null,account,replacement_used:replaced.has(row.order_id),replacement_available:row.status==='delivered'&&!replaced.has(row.order_id)};
+        return {...orderView(row),product_logo:product?.logo_url||product?.banner_url||'',product_type:product?.type||'',product_brand:product?.brand||'',product_duration:product?.duration||'',renewal_price_cents:product&&customer?soles(priceForRole(product,customer.role)):null,account,replacement_used:replaced.has(row.order_id),replacement_available:row.status==='delivered'&&!replaced.has(row.order_id)};
       });
     },
     async replaceAccount(userId,input){
@@ -417,7 +412,7 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
     },
     async adminData(){
       const topups=await query(pool,"SELECT l.*,u.email,u.username AS customer_username FROM arcangel_ledger l JOIN arcangel_users u ON u.catalog_id=l.catalog_id AND u.user_id=l.user_id WHERE l.catalog_id=? AND l.kind IN ('topup','mp_topup','yape_topup','admin_topup') ORDER BY (l.status='attention') DESC,(l.status='pending') DESC,l.created_at DESC,l.entry_id LIMIT 200");
-      const orders=await query(pool,"SELECT o.*,u.email,u.username AS customer_username FROM arcangel_orders o JOIN arcangel_users u ON u.catalog_id=o.catalog_id AND u.user_id=o.user_id WHERE o.catalog_id=? ORDER BY (o.status='pending_manual') DESC,o.created_at DESC,o.order_id LIMIT 200");
+      const orders=await query(pool,"SELECT o.*,u.email,u.username AS customer_username FROM arcangel_orders o JOIN arcangel_users u ON u.catalog_id=o.catalog_id AND u.user_id=o.user_id WHERE o.catalog_id=? ORDER BY o.created_at DESC,o.order_id LIMIT 200");
       const inventory=await query(pool,'SELECT product_id,state,COUNT(*) AS units FROM arcangel_inventory WHERE catalog_id=? GROUP BY product_id,state');
       const replacements=await this.replacements();
       const [[summary]]=await pool.execute("SELECT (SELECT COUNT(*) FROM arcangel_users WHERE catalog_id=? AND deleted_at IS NULL) AS customers,(SELECT COUNT(*) FROM arcangel_ledger WHERE catalog_id=? AND kind='topup' AND status='pending') AS pending_topups,(SELECT COUNT(*) FROM arcangel_orders WHERE catalog_id=? AND status='pending_manual') AS pending_orders,(SELECT COUNT(*) FROM arcangel_inventory WHERE catalog_id=? AND state='available') AS available",[cat,cat,cat,cat]);

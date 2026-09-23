@@ -214,15 +214,17 @@ card.innerHTML = `
           <div class="card-price-block">
             <div class="card-price-label">Precio</div>
             ${p.original_pen ? `<div class="card-strikethrough" style="font-size:.72rem;text-decoration:line-through;line-height:1;">S/ ${Number(p.original_pen).toFixed(2)}</div>` : ''}
-            <div class="card-price"><span class="card-price-cur">S/ </span>${Number(p.pen).toFixed(2)}</div>
+            ${p.pen==null?'<a class="price-signin" href="/cuenta">Inicia sesión para ver tu precio</a>':`<div class="card-price"><span class="card-price-cur">S/ </span>${Number(p.pen).toFixed(2)}</div>`}
           </div>
           <button class="card-btn" ${p.out_of_stock ? 'disabled' : ''}>Ver más</button>
         </div>
       </div>
     `;
-    const purchases=document.createElement('div');purchases.className='card-purchase-options';purchases.setAttribute('data-commerce','');
-    const canBuy=['manual','automatic'].includes(p.checkout_mode)&&!p.out_of_stock;
-    purchases.innerHTML=`<a class="buy-with-balance" href="/cuenta?comprar=${encodeURIComponent(p.id)}" ${canBuy?'':'aria-disabled="true" tabindex="-1"'}>COMPRAR ACÁ</a><a class="buy-whatsapp-small" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, quiero comprar '+p.name)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.66 15L2 22l5.2-1.36A10 10 0 1 0 12 2zm0 18a8 8 0 0 1-4.1-1.13l-.3-.18-3.07.8.82-2.99-.2-.31A8 8 0 1 1 12 20zm4.38-5.99c-.24-.12-1.4-.69-1.62-.77-.22-.08-.38-.12-.54.12-.16.24-.61.77-.75.93-.14.16-.28.18-.52.06-.24-.12-1-.37-1.91-1.18-.71-.63-1.19-1.42-1.33-1.66-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.47-.39-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.7 2.6 4.12 3.65.57.24 1.02.39 1.37.5.58.18 1.1.15 1.52.09.46-.07 1.4-.57 1.6-1.12.2-.55.2-1.02.14-1.12-.06-.1-.22-.16-.46-.28z"/></svg>COMPRAR POR WHATSAPP</a>`;
+    const purchases=document.createElement('div');purchases.className='card-purchase-options';
+    const canBuy=p.checkout_mode==='automatic'&&!p.out_of_stock; const showWhatsApp=p.whatsapp_enabled!==false;
+    const balanceLink=canBuy?`<a class="buy-with-balance" data-commerce href="/cuenta?comprar=${encodeURIComponent(p.id)}">COMPRAR ACÁ</a>`:'';
+    const whatsappLink=showWhatsApp?`<a class="buy-whatsapp-small" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, quiero comprar '+p.name)}"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"> <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/> <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.555 4.116 1.527 5.845L.057 23.982l6.304-1.633A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.66-.493-5.197-1.354l-.372-.22-3.742.969.998-3.638-.242-.386A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/> </svg>COMPRAR POR WHATSAPP</a>`:'';
+    purchases.innerHTML=balanceLink+whatsappLink;purchases.hidden=!canBuy&&!showWhatsApp;
     purchases.addEventListener('click',e=>{e.stopPropagation();if(e.target.closest('[aria-disabled=true]'))e.preventDefault();});card.querySelector('.card-body').appendChild(purchases);
     card.addEventListener('click', () => {
       if (p.out_of_stock) {
@@ -324,7 +326,7 @@ function openModal(p, updateURL = true) {
   document.getElementById('mPriceHero').innerHTML = `
   <div style="flex:1">
     ${p.original_pen ? `<div class="modal-price-was">S/ ${Number(p.original_pen).toFixed(2)}</div>` : ''}
-    <div class="modal-price-big"><sup style="font-size:1rem;vertical-align:super;font-weight:700;">S/</sup>${Number(p.pen).toFixed(2)}</div>
+    ${p.pen==null?'<a class="price-signin" href="/cuenta">Inicia sesión para ver tu precio</a>':`<div class="modal-price-big"><sup style="font-size:1rem;vertical-align:super;font-weight:700;">S/</sup>${Number(p.pen).toFixed(2)}</div>`}
     <div class="modal-price-period">Soles peruanos · ${escHtml(p.duration)}</div>
   </div>
   <div class="modal-type-badge" style="
@@ -380,12 +382,19 @@ if (p.note && p.note.trim()) {
 }
 
   const msg = encodeURIComponent(
-    `Hola! Quiero comprar:\n\n🎯 *${p.name}*\n📦 ${p.type} · ${p.duration}\n💰 S/ ${Number(p.pen).toFixed(2)} soles\n\n¿Está disponible? ¿Cómo es el proceso de pago?`
+    `Hola! Quiero comprar:\n\n🎯 *${p.name}*\n📦 ${p.type} · ${p.duration}\n${p.pen==null?'Quisiera consultar el precio.':'💰 S/ '+Number(p.pen).toFixed(2)+' soles'}\n\n¿Está disponible? ¿Cómo es el proceso de pago?`
   );
-  document.getElementById('mWA').href = `https://wa.me/${WA}?text=${msg}`;
+  const modalWhatsApp=document.getElementById('mWA');
+  if(modalWhatsApp){modalWhatsApp.href=`https://wa.me/${WA}?text=${msg}`;modalWhatsApp.hidden=p.whatsapp_enabled===false;}
   const directBuy=document.getElementById('mBuyHere');
-  if(directBuy){const enabled=['manual','automatic'].includes(p.checkout_mode)&&!p.out_of_stock;directBuy.href='/cuenta?comprar='+encodeURIComponent(p.id);directBuy.setAttribute('aria-disabled',String(!enabled));directBuy.title=enabled?(p.checkout_mode==='automatic'?'Compra con saldo y entrega automática':'Compra con saldo y atención manual'):'Compra con saldo no disponible para este producto';directBuy.onclick=e=>{if(!enabled)e.preventDefault();};}
+  if(directBuy){const enabled=p.checkout_mode==='automatic'&&!p.out_of_stock;directBuy.hidden=!enabled;directBuy.href='/cuenta?comprar='+encodeURIComponent(p.id);directBuy.setAttribute('aria-disabled',String(!enabled));directBuy.title=enabled?'Compra con saldo y entrega automática':'Compra con saldo no disponible para este producto';directBuy.onclick=e=>{if(!enabled)e.preventDefault();};}
 
+  const purchaseOptions=document.querySelector('.modal-whatsapp-sticky');
+  const hasBalance=p.checkout_mode==='automatic'&&!p.out_of_stock;
+  const hasWhatsApp=p.whatsapp_enabled!==false;
+  purchaseOptions.hidden=!hasBalance&&!hasWhatsApp;
+  purchaseOptions.classList.toggle('balance-only',hasBalance&&!hasWhatsApp);
+  purchaseOptions.querySelector('.modal-cta-copy').textContent=hasBalance&&hasWhatsApp?'Elige cómo comprar':'Comprar este producto';
   backdrop.classList.add('open');
   document.querySelector('.wa-float').style.display = 'none';
   document.getElementById('scrollTop').style.display = 'none';
@@ -498,6 +507,7 @@ function applyCategories(data) {
   requestAnimationFrame(updateFiltersScrollHint);
 }
 let loadedRevision = null;
+let loadedPrices = null;
 let refreshing = false;
 function applyCatalog(data) {
   shopCategories = data.categories;
@@ -508,6 +518,7 @@ function applyCatalog(data) {
   if (data.settings) { WA = data.settings.whatsapp; window.applyShopSettings(data.settings); }
   renderAll();
   loadedRevision = data.revision || 0;
+  loadedPrices = JSON.stringify(data.products.map(p=>[p.id,p.pen,p.original_pen]));
   const slug = new URLSearchParams(location.search).get('p');
   const product = allProducts.find(p => slugify(p.name) === slug);
   if (product && !product.out_of_stock) openModal(product, false);
@@ -520,7 +531,7 @@ async function refreshCatalog() {
     const response = await fetch('/api/catalog', { cache: 'no-store' });
     if (!response.ok) return;
     const data = await response.json();
-    if (Array.isArray(data.products) && Array.isArray(data.categories) && data.revision !== loadedRevision) applyCatalog(data);
+    if (Array.isArray(data.products) && Array.isArray(data.categories) && (data.revision !== loadedRevision || JSON.stringify(data.products.map(p=>[p.id,p.pen,p.original_pen])) !== loadedPrices)) applyCatalog(data);
   } catch (_) { /* La copia estática conserva el último catálogo guardado. */ }
   finally { refreshing = false; }
 }

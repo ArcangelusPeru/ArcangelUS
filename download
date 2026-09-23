@@ -1,1 +1,9 @@
-registry=https://registry.npmjs.org/
+node_modules/
+.npm-task-cache/
+npm-cache/
+.env
+.env.*
+!.env.example
+.backups/
+public/assets/arcangel-us/
+*.tmp
