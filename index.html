@@ -1,7 +1,42 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer"><title>Mi cuenta · Arcangel US</title><link rel="icon" href="/logo/arcangel-us.png"><link rel="stylesheet" href="/css/fonts.css?v=1.8.4"><link rel="stylesheet" href="/admin/admin.css?v=1.8.4"><link rel="stylesheet" href="/cuenta/account.css?v=1.8.4"><link rel="stylesheet" href="/cuenta/portal.css?v=1.8.4"><script src="/cuenta/yape.js?v=1.8.4" defer></script><script src="/cuenta/account.js?v=1.8.4" defer></script></head>
-<body class="customer-page"><header class="customer-header"><a href="/" class="customer-brand"><img src="/logo/arcangel-us.png" alt=""><strong>Arcangel US</strong></a><a href="/" class="button secondary">Volver a la tienda ↗</a></header>
-<main class="customer-main"><p class="eyebrow">TU ESPACIO EN ARCANGEL US</p><h1>Mi cuenta</h1><p class="customer-intro">Tu saldo, tus compras y tus accesos, en un solo lugar.</p><div id="accountContent" class="account-content" aria-live="polite">Cargando…</div></main>
-<dialog id="recoveryDialog" aria-labelledby="recoveryTitle"><div class="recovery-content"><p class="eyebrow">GUÁRDALO EN UN LUGAR PRIVADO</p><h2 id="recoveryTitle">Tu código de recuperación</h2><p>Este código permite restablecer tu contraseña. Guárdalo en privado. Si lo pierdes, puedes pedir ayuda al área de soporte desde «Olvidé mi contraseña». La tienda no envía correos de recuperación.</p><pre id="recoveryCode" class="private-delivery"></pre><button id="downloadRecovery" class="button secondary">Descargar código</button><label class="check-field"><input id="savedRecovery" type="checkbox">Ya guardé mi código</label><button id="closeRecovery" class="button primary" disabled>Continuar</button></div></dialog>
-<div class="toast" id="toast" role="status" hidden></div><script src="/cuenta/mercado.js?v=1.8.4" defer></script>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Administración · Arcangel US</title><link rel="icon" href="/logo/arcangel-us.png"><link rel="stylesheet" href="/css/fonts.css?v=1.8.4"><link rel="stylesheet" href="/admin/admin.css?v=1.8.4"><script src="/admin/yape-voice.js?v=1.8.4" defer></script><script src="/admin/alerts.js?v=1.8.4" defer></script><link rel="stylesheet" href="/admin/yape-activity.css?v=1.8.4"><script src="/admin/yape-activity.js?v=1.8.4" defer></script><script src="/admin/yape.js?v=1.8.4" defer></script><script src="/admin/commerce.js?v=1.8.4" defer></script><script src="/admin/admin.js?v=1.8.4" defer></script></head>
+<body>
+<section id="loginScreen" class="login-screen" hidden>
+  <form id="loginForm" class="login-card">
+    <img src="/logo/arcangel-us.png" alt="Arcangel US" class="login-logo">
+    <p class="eyebrow">ACCESO DEL DUEÑO</p><h1>Entrar al panel</h1>
+    <p id="loginIntro">Introduce tu contraseña para administrar los productos y la web.</p>
+    <label class="field" id="passwordField"><span>Contraseña del panel</span><input type="password" id="adminPassword" name="password" autocomplete="current-password" required maxlength="1024"></label>
+    <p id="loginError" role="alert"></p><button class="button primary" type="submit" id="loginButton">Entrar al panel</button>
+    <a href="/" class="login-back">Volver a la tienda</a>
+  </form>
+</section>
+<div class="admin-shell" hidden>
+  <aside class="sidebar">
+    <a class="admin-brand" href="/"><img src="/logo/arcangel-us.png" alt="" id="adminLogo"><span><strong id="adminName">Arcangel US</strong><small>Administración</small></span></a>
+    <div class="nav-label">TU TIENDA</div>
+    <nav aria-label="Administración">
+      <button data-view="products" class="nav-button active"><span aria-hidden="true">▦</span>Productos <small id="navCount"></small></button>
+      <button data-view="categories" class="nav-button"><span aria-hidden="true">▤</span>Categorías</button>
+      <button data-view="settings" class="nav-button"><span aria-hidden="true">⚙</span>Configurar web</button>
+      <button data-view="backups" class="nav-button"><span aria-hidden="true">↓</span>Respaldos</button>
+      <button data-view="commerce" class="nav-button"><span aria-hidden="true">◉</span>Ventas</button>
+      <button data-view="yapeActivity" class="nav-button"><span aria-hidden="true">↗</span>Notificaciones Yape</button>
+    </nav>
+    <div class="sidebar-bottom"><span class="local-label" id="accessLabel">En este equipo</span><a class="view-store" href="/" target="_blank" rel="noopener">Ver mi tienda <span aria-hidden="true">↗</span></a></div>
+    <button type="button" id="logoutButton" class="button ghost logout-button" hidden>Cerrar sesión</button>
+  </aside>
+  <main class="workspace">
+    <header class="page-header"><div><p class="eyebrow">PANEL DE CONTROL</p><h1 id="pageTitle">Productos</h1><p id="pageIntro">Administra tu catálogo, sus precios y su disponibilidad.</p></div><div id="pageAction"></div></header>
+    <section id="salesAlert" class="sales-alert" hidden aria-label="Avisos de recargas y reportes"><div><strong id="salesAlertTitle">Recargas</strong><p id="salesAlertStatus" role="status">Consultando solicitudes…</p><p id="salesVoiceLast" class="yape-voice-last" aria-live="polite"></p></div><div class="row-actions"><button class="button secondary small" id="enableSalesSound" type="button" aria-pressed="false">Activar altavoz de recargas</button><button class="button ghost small" id="testSalesVoice" type="button">Probar voz de recarga</button><button class="button primary small" id="reviewSalesRequests" type="button" hidden>Revisar recargas</button><button class="button primary small" id="reviewAccountReports" type="button" hidden>Revisar reportes</button></div></section>
+    <section id="yapeVoice" class="yape-voice" hidden aria-label="Altavoz de Yape">
+      <div class="yape-voice-copy"><strong>Altavoz de Yape</strong><p id="yapeVoiceStatus" role="status"></p><p id="yapeVoiceLast" class="yape-voice-last"></p></div>
+      <div class="row-actions"><button type="button" id="enableYapeVoice" class="button secondary small" aria-pressed="false">Activar altavoz</button><button type="button" id="testYapeVoiceCode" class="button ghost small">Probar con código</button><button type="button" id="testYapeVoiceNoCode" class="button ghost small">Probar sin código</button></div>
+    </section>
+    <div id="connectionError" role="alert" hidden></div>
+    <div id="mainContent"><div class="loading">Cargando tu tienda…</div></div>
+  </main>
+</div>
+<dialog id="editor" aria-labelledby="editorTitle"><form id="editorForm"><header class="editor-header"><div><p class="eyebrow" id="editorEyebrow">CATÁLOGO</p><h2 id="editorTitle">Editar producto</h2></div><button class="icon-button" type="button" id="closeEditor" aria-label="Cerrar editor">✕</button></header><div id="editorFields" class="editor-fields"></div><footer class="editor-footer"><p id="editorError" role="alert"></p><div class="editor-actions"><button class="button danger ghost" id="deleteItem" type="button">Eliminar</button><span class="spacer"></span><button class="button secondary" type="button" id="cancelEditor">Cancelar</button><button class="button primary" type="submit" id="saveItem">Guardar cambios</button></div></footer></form></dialog>
+<div class="toast" id="toast" role="status" hidden></div>
 </body></html>
