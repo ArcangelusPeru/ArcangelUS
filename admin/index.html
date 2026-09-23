@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Administración · Arcangel US</title><link rel="icon" href="/logo/arcangel-us.png"><link rel="stylesheet" href="/css/fonts.css?v=1.9.0"><link rel="stylesheet" href="/admin/admin.css?v=1.9.0"><script src="/admin/yape-voice.js?v=1.9.0" defer></script><script src="/admin/alerts.js?v=1.9.0" defer></script><link rel="stylesheet" href="/admin/yape-activity.css?v=1.9.0"><script src="/admin/yape-activity.js?v=1.9.0" defer></script><script src="/admin/yape.js?v=1.9.0" defer></script><script src="/admin/commerce.js?v=1.9.0" defer></script><script src="/admin/admin.js?v=1.9.0" defer></script></head>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Administración · Arcangel US</title><link rel="icon" href="/logo/arcangel-us.png"><link rel="stylesheet" href="/css/fonts.css?v=1.9.5"><link rel="stylesheet" href="/admin/admin.css?v=1.9.5"><script src="/admin/yape-voice.js?v=1.9.5" defer></script><script src="/admin/alerts.js?v=1.9.5" defer></script><link rel="stylesheet" href="/admin/yape-activity.css?v=1.9.5"><script src="/admin/yape-activity.js?v=1.9.5" defer></script><script src="/admin/yape.js?v=1.9.5" defer></script><script src="/admin/commerce.js?v=1.9.5" defer></script><script src="/admin/admin.js?v=1.9.5" defer></script></head>
 <body>
 <section id="loginScreen" class="login-screen" hidden>
   <form id="loginForm" class="login-card">
@@ -23,17 +23,20 @@
       <button data-view="commerce" class="nav-button"><span aria-hidden="true">◉</span>Ventas</button>
       <button data-view="yapeActivity" class="nav-button"><span aria-hidden="true">↗</span>Notificaciones Yape</button>
       <button data-view="customers" class="nav-button"><span aria-hidden="true">♙</span>Clientes</button>
+      <button data-view="payments" class="nav-button"><span aria-hidden="true">▣</span>Pagos</button>
     </nav>
     <div class="sidebar-bottom"><span class="local-label" id="accessLabel">En este equipo</span><a class="view-store" href="/" target="_blank" rel="noopener">Ver mi tienda <span aria-hidden="true">↗</span></a></div>
     <button type="button" id="logoutButton" class="button ghost logout-button" hidden>Cerrar sesión</button>
   </aside>
   <main class="workspace">
     <header class="page-header"><div><p class="eyebrow">PANEL DE CONTROL</p><h1 id="pageTitle">Productos</h1><p id="pageIntro">Administra tu catálogo, sus precios y su disponibilidad.</p></div><div id="pageAction"></div></header>
+    <div id="notificationControls" hidden>
     <section id="salesAlert" class="sales-alert" hidden aria-label="Avisos de recargas y reportes"><div><strong id="salesAlertTitle">Recargas</strong><p id="salesAlertStatus" role="status">Consultando solicitudes…</p><p id="salesVoiceLast" class="yape-voice-last" aria-live="polite"></p></div><div class="row-actions"><button class="button secondary small" id="enableSalesSound" type="button" aria-pressed="false">Activar altavoz de recargas</button><button class="button ghost small" id="testSalesVoice" type="button">Probar voz de recarga</button><button class="button primary small" id="reviewSalesRequests" type="button" hidden>Revisar recargas</button><button class="button primary small" id="reviewAccountReports" type="button" hidden>Revisar reportes</button></div></section>
     <section id="yapeVoice" class="yape-voice" hidden aria-label="Altavoz de Yape">
       <div class="yape-voice-copy"><strong>Altavoz de Yape</strong><p id="yapeVoiceStatus" role="status"></p><p id="yapeVoiceLast" class="yape-voice-last"></p></div>
       <div class="row-actions"><button type="button" id="enableYapeVoice" class="button secondary small" aria-pressed="false">Activar altavoz</button><button type="button" id="testYapeVoiceCode" class="button ghost small">Probar con código</button><button type="button" id="testYapeVoiceNoCode" class="button ghost small">Probar sin código</button></div>
     </section>
+    </div>
     <div id="connectionError" role="alert" hidden></div>
     <div id="mainContent"><div class="loading">Cargando tu tienda…</div></div>
   </main>

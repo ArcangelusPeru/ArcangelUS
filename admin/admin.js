@@ -25,12 +25,14 @@
   const statusLabel={available:'Disponible',soldout:'Agotado',hidden:'Oculto'};
   function render(){
     if(!state)return;
+    // Hide only the controls; both announcement services keep running across views.
+    $('#notificationControls').hidden=view!=='yapeActivity';
     window.renderYapeActivity?.stop?.();
     $$('.nav-button').forEach(b=>{b.classList.toggle('active',b.dataset.view===view);b.setAttribute('aria-current',b.dataset.view===view?'page':'false');});
-    const labels={products:['Productos','Administra tu catálogo, sus precios y su disponibilidad.'],categories:['Categorías','Organiza tus productos y cambia las imágenes de los filtros.'],settings:['Configurar web','Edita la marca, los textos, el contacto y el fondo de tu tienda.'],backups:['Respaldos','Descarga una copia de tus productos, configuración e imágenes subidas.'],customers:['Clientes','Gestiona usuarios, roles, contraseñas y saldo.'],commerce:['Ventas','Gestiona recargas, cuentas disponibles y ventas de tus clientes.'],yapeActivity:['Notificaciones Yape','Todos tus avisos de pago, organizados en un solo lugar.']};
+    const labels={products:['Productos','Administra tu catálogo, sus precios y su disponibilidad.'],categories:['Categorías','Organiza tus productos y cambia las imágenes de los filtros.'],settings:['Configurar web','Edita la marca, los textos, el contacto y el fondo de tu tienda.'],backups:['Respaldos','Descarga una copia de tus productos, configuración e imágenes subidas.'],customers:['Clientes','Gestiona usuarios, roles, contraseñas y saldo.'],payments:['Pagos','Gestiona las recargas de saldo y Yape automático.'],commerce:['Ventas','Gestiona cuentas disponibles, ventas, reportes y reemplazos.'],yapeActivity:['Notificaciones Yape','Todos tus avisos de pago, organizados en un solo lugar.']};
     $('#pageTitle').textContent=labels[view][0];$('#pageIntro').textContent=labels[view][1];
     $('#pageAction').innerHTML=view==='products'?'<button class="button primary" id="addProduct"><span aria-hidden="true">＋</span> Agregar producto</button>':view==='categories'?'<button class="button primary" id="addCategory"><span aria-hidden="true">＋</span> Nueva categoría</button>':'<a class="button secondary" href="/" target="_blank" rel="noopener">Ver tienda ↗</a>';
-    if(view==='products')renderProducts();else if(view==='categories')renderCategories();else if(view==='backups')renderBackups();else if(view==='commerce'||view==='customers')renderCommerce();else if(view==='yapeActivity')renderYapeActivity();else renderSettings();
+    if(view==='products')renderProducts();else if(view==='categories')renderCategories();else if(view==='backups')renderBackups();else if(view==='commerce'||view==='customers'||view==='payments')renderCommerce();else if(view==='yapeActivity')renderYapeActivity();else renderSettings();
     $('#addProduct')?.addEventListener('click',()=>openProduct());$('#addCategory')?.addEventListener('click',()=>openCategory());
   }
   function renderProducts(){
@@ -110,11 +112,16 @@
     editing={type:'special',key,isNew:false};dirty=false;$('#editorTitle').textContent='Editar filtro';$('#editorEyebrow').textContent='CATEGORÍAS';$('#deleteItem').hidden=true;$('#saveItem').textContent='Guardar filtro';$('#editorError').textContent='';$('#editorFields').innerHTML=`<div class="editor-layout"><div>${field('label','Nombre del filtro',state.settings[key+'_label'],{required:true})}</div><div>${imageEditor('image_url',state.settings[key+'_image'],'Imagen del filtro')}</div></div>`;wireImages($('#editorForm'));$('#editor').showModal();
   }
   function renderYapeActivity(){
-    window.renderYapeActivity({api,esc,toast,current:()=>view==='yapeActivity',openSettings:()=>{window.renderCommercePanel.section='salesYape';view='commerce';render();}});
+    window.renderYapeActivity({api,esc,toast,current:()=>view==='yapeActivity',openSettings:()=>openCommerceSection('salesYape')});
+  }
+  function openCommerceSection(section){
+    const payments=['salesTopups','salesYape'].includes(section);
+    window.renderCommercePanel[payments?'paymentSection':'section']=section;
+    view=payments?'payments':'commerce';render();
   }
   function renderCommerce(){
     const currentView=view;
-    window.renderCommercePanel({api,esc,toast,customersOnly:currentView==='customers',state:()=>state,current:()=>view===currentView,busy:value=>{saving=value;updateSaveButtons();},isDirty:()=>dirty,dirty:value=>dirty=value,refreshState:async()=>installState(await api('/api/admin/state'))});
+    window.renderCommercePanel({api,esc,toast,customersOnly:currentView==='customers',paymentsOnly:currentView==='payments',state:()=>state,current:()=>view===currentView,busy:value=>{saving=value;updateSaveButtons();},isDirty:()=>dirty,dirty:value=>dirty=value,refreshState:async()=>installState(await api('/api/admin/state'))});
   }
   function renderSettings(){
     const s={yape:'',plin:'',payment_name:'',payment_qr:'',...state.settings};
@@ -184,7 +191,7 @@
     storage=await api('/api/admin/storage');token=storage.token;$('.admin-shell').hidden=false;$('#loginScreen').hidden=true;$('#logoutButton').hidden=!session.hosted;$('#accessLabel').textContent=storage.kind==='mysql'?'MySQL · '+storage.catalogId:'En este equipo';
     if(!storage.initialized){showSetup();return;}
     window.arcangelYapeVoice?.start({api});
-    window.arcangelAlerts?.start({api,onReview:(section='salesTopups')=>{if(saving||pendingUploads||dirty){toast('Guarda o cierra los cambios antes de revisar los avisos.',true);return;}window.renderCommercePanel.section=section;view='commerce';render();}});
+    window.arcangelAlerts?.start({api,onReview:(section='salesTopups')=>{if(saving||pendingUploads||dirty){toast('Guarda o cierra los cambios antes de revisar los avisos.',true);return;}openCommerceSection(section);}});
     installState(await api('/api/admin/state'));render();
   }
   $('#loginForm').addEventListener('submit',async e=>{
