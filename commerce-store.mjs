@@ -45,6 +45,16 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
   if(!roleColumn.length){try{await pool.query("ALTER TABLE arcangel_users ADD COLUMN role VARCHAR(16) NOT NULL DEFAULT 'customer'");}catch(error){if(error.code!=='ER_DUP_FIELDNAME')throw error;}}
   const [ledgerOrderColumn]=await pool.query("SHOW COLUMNS FROM arcangel_ledger LIKE 'order_id'");
   if(!ledgerOrderColumn.length){try{await pool.query(`ALTER TABLE arcangel_ledger ADD COLUMN order_id ${uuid} NULL, ADD KEY ledger_order(catalog_id,order_id,kind,status)`);}catch(error){if(error.code!=='ER_DUP_FIELDNAME'&&error.code!=='ER_DUP_KEYNAME')throw error;}}
+  // Link legacy renewals when there is exactly one unambiguous delivered order
+  // for the same customer and product. Ambiguous records stay unlinked so a
+  // historical payment is never assigned to the wrong sale.
+  const [legacyRenewals]=await pool.execute("SELECT entry_id,user_id,note,created_at FROM arcangel_ledger WHERE catalog_id=? AND kind='renewal' AND order_id IS NULL",[cat]);
+  for(const renewal of legacyRenewals){
+    const prefix='Renovación · ',productName=String(renewal.note||'').startsWith(prefix)?String(renewal.note).slice(prefix.length):'';
+    if(!productName)continue;
+    const [matches]=await pool.execute("SELECT order_id FROM arcangel_orders WHERE catalog_id=? AND user_id=? AND product_name=? AND status='delivered' AND created_at<=? ORDER BY created_at DESC,order_id",[cat,renewal.user_id,productName,renewal.created_at]);
+    if(matches.length===1)await pool.execute('UPDATE arcangel_ledger SET order_id=? WHERE catalog_id=? AND entry_id=? AND order_id IS NULL',[matches[0].order_id,cat,renewal.entry_id]);
+  }
   // A wrong or rotated encryption key must fail at startup, before new sales.
   await pool.execute('INSERT IGNORE INTO arcangel_commerce_meta(catalog_id,document) VALUES(?,?)',[cat,sealer.seal('arcangel-commerce-v1',`${cat}:key-check`)]);
   const [meta]=await pool.execute('SELECT document FROM arcangel_commerce_meta WHERE catalog_id=?',[cat]);

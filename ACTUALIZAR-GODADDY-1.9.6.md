@@ -6,6 +6,7 @@ Esta actualización corrige el importe mostrado en **Ventas realizadas**.
 - El panel muestra el **Importe total**, sumando la compra y las renovaciones.
 - La tabla indica cuánto corresponde a renovaciones.
 - Se incluye una migración compatible para bases de datos existentes.
+- Las renovaciones antiguas se vinculan solo cuando existe una única compra compatible; los casos ambiguos quedan sin asignar para evitar errores.
 - Se actualiza la caché de los recursos a `v1.9.6`.
 
 Validación local:
