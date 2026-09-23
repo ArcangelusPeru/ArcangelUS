@@ -11,3 +11,6 @@ html:not([data-commerce=true]) [data-commerce]{display:none!important}.customer-
 #mWA[hidden],#mBuyHere[hidden],.modal-whatsapp-sticky[hidden],.card-purchase-options[hidden]{display:none!important}
 html:not([data-commerce=true]) .modal-whatsapp-sticky.balance-only{display:none!important}
 html:not([data-commerce=true]) .card-purchase-options:not(:has(a:not([data-commerce]))){display:none!important}
+
+.customer-logout{font-family:inherit;gap:7px;cursor:pointer;white-space:nowrap}.customer-logout:hover{color:#fff;background:linear-gradient(135deg,#8f2634,#be3344);border-color:#f06a76}.customer-logout[disabled]{opacity:.65;cursor:wait}#storeLogoutError{flex-basis:100%;font-size:12px;color:var(--text);text-align:right}
+
