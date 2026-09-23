@@ -2,6 +2,7 @@
   'use strict';
   const el=id=>document.getElementById(id),digits=['cero','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve'];
   let ctx=null,enabled=false,timer=null,generation=0,busy=false,baseline=true,startAt=null,lastThrough=null,seen=new Map(),queue=[],utterance=null,speakingItem=null,speechTimer=null,speechGeneration=0;
+  let needsInteraction=false;
   function paymentText(event){
     if(event.unreadable||!event.name||!Number.isSafeInteger(event.amount_cents)||event.amount_cents<1)return 'Llegó una notificación de Yape. No se pudieron leer todos sus datos. Revísala en el panel.';
     const whole=Math.floor(event.amount_cents/100),cents=event.amount_cents%100;
@@ -25,9 +26,19 @@
   function silence(){enabled=false;generation++;busy=false;clearInterval(timer);timer=null;baseline=true;startAt=lastThrough=null;seen.clear();cancelSpeech('yape');paint();}
   function voiceFailure(){silence();status('No se pudo reproducir la voz. Comprueba el volumen y prueba de nuevo. Si continúa, abre el panel en Chrome o Edge con una voz en español instalada.');}
   function speakNext(){
-    if(utterance||!queue.length||!ctx)return;
+    if(utterance||!queue.length||!ctx||needsInteraction)return;
     const item=queue.shift(),speechId=speechGeneration;speakingItem=item;
-    const fail=()=>{if(speechId!==speechGeneration)return;if(item.source==='yape')voiceFailure();else{cancelSpeech(item.source);item.onError?.();}};
+    const fail=event=>{
+      if(speechId!==speechGeneration)return;
+      if(event?.error==='not-allowed'){
+        // Keep the alert queued until a real user gesture unlocks browser audio.
+        speechGeneration++;clearTimeout(speechTimer);utterance=null;speakingItem=null;
+        queue.unshift(item);needsInteraction=true;
+        status('Los altavoces están activados. Haz clic en el panel para permitir que el navegador reproduzca la voz.');
+        return;
+      }
+      if(item.source==='yape')voiceFailure();else{cancelSpeech(item.source);item.onError?.();}
+    };
     try{
       const synth=window.speechSynthesis;
       utterance=new window.SpeechSynthesisUtterance(item.text);
@@ -67,7 +78,7 @@
       }while(after);
       lastThrough=through;baseline=false;
       for(const [id,time] of seen)if(time<Math.max(startAt,lastThrough-60))seen.delete(id);
-      status('Escuchando Yapeos nuevos cada 10 segundos en todas las secciones. Mantén el panel abierto y el equipo despierto.');
+      if(!needsInteraction)status('Altavoz activado automáticamente. Escuchando Yapeos cada 10 segundos, también mientras usas otra ventana. Mantén el panel abierto y el equipo despierto.');
     }catch(error){
       if(current!==generation)return;
       if(error.status===401){stop();return;}
@@ -75,26 +86,46 @@
       status('No se pudo consultar Yape. Reintentaremos la conexión automáticamente.');
     }finally{if(current===generation)busy=false;}
   }
+  function activate(welcome=false){
+    if(enabled)return;
+    if(!supported()){status('Este navegador no ofrece voz. Abre el panel en Chrome o Edge y vuelve a probar.');return;}
+    enabled=true;generation++;paint();status('Conectando el altavoz con las notificaciones nuevas…');
+    if(welcome)enqueue('Altavoz activado. Avisaré cuando llegue un Yape nuevo.','Altavoz activado.');
+    poll();timer=setInterval(poll,10000);
+  }
+  function unlock(){
+    if(!supported())return;
+    try{
+      window.speechSynthesis.resume();
+      if(needsInteraction){needsInteraction=false;speakNext();}
+      else if(!utterance){
+        // Called synchronously from login/interaction, before any awaited fetch.
+        const prime=new window.SpeechSynthesisUtterance(' ');prime.volume=0;
+        window.speechSynthesis.speak(prime);
+      }
+    }catch{}
+  }
   function toggle(){
     if(enabled){silence();status('Altavoz silenciado. Los pagos siguen guardados en Notificaciones Yape.');return;}
-    if(!supported()){status('Este navegador no ofrece voz. Abre el panel en Chrome o Edge y vuelve a probar.');return;}
-    cancelSpeech('yape');enabled=true;generation++;paint();status('Conectando el altavoz con las notificaciones nuevas…');
-    enqueue('Altavoz activado. Avisaré cuando llegue un Yape nuevo.','Altavoz activado.');
-    if(enabled){poll();timer=setInterval(poll,10000);}
+    unlock();activate(true);
   }
   function test(withCode){
     if(!supported()){status('Este navegador no ofrece voz. Abre el panel en Chrome o Edge y vuelve a probar.');return;}
     const text=paymentText({name:withCode?'Lucía Demo':'Ana Demo',amount_cents:withCode?800:1550,code:withCode?'038':null});
     enqueue('Prueba de altavoz. '+text,'Prueba de altavoz: '+text);
   }
-  function stop(){ctx=null;silence();cancelSpeech();el('yapeVoice').hidden=true;el('yapeVoiceLast').textContent='';}
+  function stop(){ctx=null;silence();cancelSpeech();needsInteraction=false;el('yapeVoice').hidden=true;el('yapeVoiceLast').textContent='';}
   function start(context){
     stop();ctx=context;el('yapeVoice').hidden=false;
-    status('Actívalo para leer nombre, monto y código de los Yapeos nuevos. Funciona en todas las secciones; al recargar la página debes activarlo otra vez.');
+    status('El altavoz se activa al iniciar sesión. Puedes silenciarlo cuando quieras.');
     el('enableYapeVoice').onclick=toggle;el('testYapeVoiceCode').onclick=()=>test(true);el('testYapeVoiceNoCode').onclick=()=>test(false);
+    if(context.autoStart!==false)activate();
   }
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)poll();});
   window.addEventListener('focus',poll);
-  window.addEventListener('pagehide',()=>{silence();cancelSpeech();status('Activa el altavoz para escuchar nuevos Yapeos.');});
-  window.arcangelYapeVoice={start,stop,poll,paymentText,announce,cancelAnnouncements:()=>cancelSpeech('sales')};
+  document.addEventListener('pointerdown',event=>{if(event.isTrusted&&needsInteraction)unlock();});
+  document.addEventListener('keydown',event=>{if(event.isTrusted&&needsInteraction)unlock();});
+  window.addEventListener('pagehide',()=>{generation++;busy=false;clearInterval(timer);timer=null;cancelSpeech();});
+  window.addEventListener('pageshow',()=>{if(ctx&&enabled&&!timer){poll();timer=setInterval(poll,10000);}});
+  window.arcangelYapeVoice={start,stop,poll,unlock,paymentText,announce,cancelAnnouncements:()=>cancelSpeech('sales')};
 })();

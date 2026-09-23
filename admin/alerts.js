@@ -48,6 +48,7 @@
   function stop(){generation++;ctx=null;seen=null;polling=false;clearInterval(timer);timer=null;setSound(false);window.arcangelYapeVoice?.cancelAnnouncements();el('salesAlert').hidden=true;el('salesVoiceLast').textContent='';if(audio){audio.close().catch(()=>{});audio=null;}}
   function start(context){
     ctx=context;if(timer)return;generation++;
+    setSound(context.autoStart!==false);if(sound)prepareChime();
     el('enableSalesSound').onclick=()=>{
       if(sound){setSound(false);window.arcangelYapeVoice?.cancelAnnouncements();el('salesVoiceLast').textContent='Altavoz de recargas silenciado.';return;}
       prepareChime();setSound(true);announce('Altavoz activado. Te avisaré cuando llegue una solicitud de recarga manual.');
@@ -57,6 +58,10 @@
     refresh();timer=setInterval(refresh,10000);
   }
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)refresh();});
-  window.addEventListener('focus',refresh);window.addEventListener('pagehide',()=>{setSound(false);window.arcangelYapeVoice?.cancelAnnouncements();if(audio)audio.suspend().catch(()=>{});});
-  window.arcangelAlerts={start,stop,refresh,manualText};
+  window.addEventListener('focus',refresh);
+  document.addEventListener('pointerdown',event=>{if(event.isTrusted&&sound&&audio?.state!=='running')prepareChime();});
+  document.addEventListener('keydown',event=>{if(event.isTrusted&&sound&&audio?.state!=='running')prepareChime();});
+  window.addEventListener('pagehide',()=>{generation++;polling=false;clearInterval(timer);timer=null;window.arcangelYapeVoice?.cancelAnnouncements();if(audio)audio.suspend().catch(()=>{});});
+  window.addEventListener('pageshow',()=>{if(ctx&&!timer){refresh();timer=setInterval(refresh,10000);}});
+  window.arcangelAlerts={start,stop,refresh,manualText,unlock:prepareChime};
 })();
