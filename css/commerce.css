@@ -14,3 +14,31 @@ html:not([data-commerce=true]) .card-purchase-options:not(:has(a:not([data-comme
 
 .customer-logout{font-family:inherit;gap:7px;cursor:pointer;white-space:nowrap}.customer-logout:hover{color:#fff;background:linear-gradient(135deg,#8f2634,#be3344);border-color:#f06a76}.customer-logout[disabled]{opacity:.65;cursor:wait}#storeLogoutError{flex-basis:100%;font-size:12px;color:var(--text);text-align:right}
 
+.card-stock{display:flex;align-items:center;gap:7px;width:fit-content;max-width:100%;margin:10px 0 12px;padding:6px 9px;border:1px solid rgba(248,113,113,.3);border-radius:8px;background:rgba(239,68,68,.1);color:#fca5a5;font-size:.72rem;font-weight:700;line-height:1.4}
+.card-stock svg{flex:none}
+.card-stock.is-empty,.card-stock.is-unconfirmed{color:var(--muted);background:var(--surface-2);border-color:var(--border)}
+[data-theme="light"] .card-stock:not(.is-empty):not(.is-unconfirmed){color:#a52030;background:#fff0f1;border-color:#edb9bf}
+
+/* Live mode: blur platform artwork while leaving the catalogue readable. */
+.header .live-mode-toggle{display:inline-flex;align-items:center;justify-content:center;gap:7px;flex:none;min-height:40px;padding:8px 12px;border:1px solid #a3424f;border-radius:10px;background:linear-gradient(135deg,#441820,#6a222f);color:#fff;font:inherit;font-size:12px;font-weight:700;white-space:nowrap;cursor:pointer;transition:background .18s,box-shadow .18s}
+.header .live-mode-toggle:hover{background:linear-gradient(135deg,#762531,#9f303e)}
+.header .live-mode-toggle[aria-pressed="true"]{background:linear-gradient(135deg,#c82236,#ee414e);border-color:#ff7e86;box-shadow:0 0 16px #ed334d45}
+.live-mode-dot{width:6px;height:6px;flex:none;border-radius:50%;background:#b78c92}
+[aria-pressed="true"] .live-mode-dot{background:#fff;box-shadow:0 0 6px #fff9}
+.live-mode-toggle:focus-visible{outline:3px solid #fa8b8b;outline-offset:3px}
+.live-mode-status{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+html[data-live-mode="on"] .card-banner-img,html[data-live-mode="on"] .filter-chip-img{filter:blur(8px)}
+html[data-live-mode="on"] .card:focus-visible .card-banner-img,html[data-live-mode="on"] .filter-chip:focus-visible .filter-chip-img{filter:none}
+html[data-live-mode="on"] .filter-chip-media{overflow:hidden}
+html[data-live-mode="on"] #mBanner::after{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+@media(hover:hover){
+  html[data-live-mode="on"] .card:hover .card-banner-img,html[data-live-mode="on"] .filter-chip:hover .filter-chip-img{filter:none}
+  html[data-live-mode="on"] #mBanner:hover::after{backdrop-filter:none;-webkit-backdrop-filter:none}
+}
+.header .header-right{flex-wrap:wrap;justify-content:flex-end;min-width:0}
+.header .logo{flex:none}
+.header .header-brand-name{max-width:100%;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:900px){.header .header-inner{height:auto;min-height:94px;padding-block:8px}.header .header-right{flex:1}.header .customer-store-nav{flex-basis:100%}}
+@media(max-width:650px){.header .header-inner{min-height:78px;flex-wrap:nowrap;gap:8px}.header .header-right{gap:6px}.header .live-mode-toggle{min-height:38px;padding:7px 9px;font-size:11px}}
+@media(prefers-reduced-motion:reduce){.header .live-mode-toggle{transition:none}}
+
