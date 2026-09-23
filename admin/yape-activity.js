@@ -1,9 +1,11 @@
 window.renderYapeActivity=async function(ctx){
+  window.renderYapeActivity.stop?.();
   const {api,esc,toast}=ctx,host=document.getElementById('mainContent');
   host.innerHTML='<section class="yape-activity"><div class="loading">Consultando notificaciones Yape…</div></section>';
   const root=host.firstElementChild,alive=()=>root.isConnected&&ctx.current();
   const saved=window.renderYapeActivity.filters||{q:'',amount:'',state:'all',from:'',to:'',size:50,page:1};
-  let filters={...saved},tab=window.renderYapeActivity.tab||'dashboard',data,busy=false;
+  let filters={...saved},tab=window.renderYapeActivity.tab||'dashboard',data,busy=false,filterDraft=false,stopped=false,timer=null;
+  const interactive=()=>filterDraft||root.querySelector('details[open]')||root.contains(document.activeElement)&&document.activeElement.matches('input,select,textarea');
   const labels={received:'Recibido con código',credited:'Acreditado',ambiguous:'Posible duplicado',without_code:'Sin código · revisar',unrecognized:'Formato no reconocido'};
   const money=c=>c==null?'—':'S/ '+(Number(c)/100).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
   const format=(time,options)=>new Date(Number(time)).toLocaleString('es-PE',{timeZone:'America/Lima',...options});
@@ -30,7 +32,9 @@ window.renderYapeActivity=async function(ctx){
       if(tab==='payments')root.insertAdjacentHTML('beforeend',`<div class="yp-results"><p><strong>${data.summary.count}</strong> registros · Importe del filtro: <strong class="yp-amount">${money(data.summary.total_cents)}</strong></p><button class="button secondary" data-export>↓ Exportar CSV para Excel</button></div><section class="yp-card yp-table-card">${table(data.events)}<div class="yp-pagination"><span>Página ${data.page} de ${data.pages} · ${data.events.length} filas</span><label>Filas por página <select data-size>${[20,50,100,200].map(n=>`<option value="${n}" ${filters.size===n?'selected':''}>${n}</option>`).join('')}</select></label><div class="row-actions"><button class="button secondary small" data-prev ${data.page<=1?'disabled':''}>Anterior</button><button class="button secondary small" data-next ${data.page>=data.pages?'disabled':''}>Siguiente</button></div></div></section>`);
       else root.insertAdjacentHTML('beforeend',stats([['TOTAL DE AVISOS',data.summary.count,`${data.summary.without_code} sin código`],['IMPORTE NOTIFICADO',money(data.summary.total_cents),'Según los filtros','accent'],['PROMEDIO POR AVISO',money(data.summary.average_cents),`${data.summary.known_count} importes incluidos`],['MONTO MÁXIMO',money(data.summary.max_cents),'Importes incluidos'],['MONTO MÍNIMO',money(data.summary.min_cents),'Importes incluidos']])+`<div class="yp-report-grid">${chart(data.months,'Importes de los últimos 12 meses',true)}${reportStates()}</div>`+chart(data.days,'Importes de los últimos 30 días')+'<div class="yp-results"><p class="help">Los gráficos muestran los registros que cumplen los filtros.</p><button class="button secondary" data-export>↓ Exportar registros filtrados (CSV)</button></div>');
     }
-    root.insertAdjacentHTML('beforeend',`<p class="yp-footer">Datos consultados: ${date(data.generated_at)} · ${hour(data.generated_at)} · Catálogo ${esc(d.catalog_id||'')} · Zona horaria: Perú</p>`);
+    root.insertAdjacentHTML('beforeend',`<p class="yp-footer" data-live-status>Actualización automática cada 5 segundos · Datos consultados: ${date(data.generated_at)} · ${hour(data.generated_at)} · Catálogo ${esc(d.catalog_id||'')} · Hora de Perú</p>`);
+    root.querySelector('[data-filters]')?.addEventListener('input',()=>filterDraft=true);
+    root.querySelector('[data-filters]')?.addEventListener('change',()=>filterDraft=true);
     root.querySelectorAll('[data-yp-tab]').forEach(b=>b.onclick=()=>switchTab(b.dataset.ypTab));
     root.querySelector('[data-all-payments]')?.addEventListener('click',()=>switchTab('payments'));
     root.querySelector('[data-filters]')?.addEventListener('submit',e=>{e.preventDefault();if(busy)return;readFilters();filters.page=1;load();});
@@ -44,10 +48,20 @@ window.renderYapeActivity=async function(ctx){
   function readFilters(){const form=root.querySelector('[data-filters]');if(form)for(const [k,v] of new FormData(form))filters[k]=v;}
   function params(exporting=false){return new URLSearchParams(tab==='dashboard'?{size:'20',page:'1'}:{...filters,...(exporting?{export:'1'}:{})});}
   function controls(disabled){root.querySelectorAll('button,input,select').forEach(b=>{if(disabled){b.dataset.wasDisabled=b.disabled?'1':'0';b.disabled=true;}else if('wasDisabled' in b.dataset){b.disabled=b.dataset.wasDisabled==='1';delete b.dataset.wasDisabled;}});}
-  async function load(){if(busy)return;busy=true;controls(true);try{const result=await api('/api/admin/commerce/yape/activity?'+params());if(!alive())return;data=result;window.renderYapeActivity.filters={...filters};draw();}catch(e){if(alive()){if(!data)root.innerHTML='<div class="yp-error" role="alert"></div>';const error=root.querySelector('[data-yp-error],.yp-error');if(error){error.hidden=false;error.textContent=e.message;}toast(e.message,true);}}finally{busy=false;if(alive())controls(false);}}
+  async function load(background=false){
+    if(busy||stopped||!alive()||background&&(document.hidden||interactive()))return;
+    busy=true;if(!background){filterDraft=false;controls(true);}
+    try{const result=await api('/api/admin/commerce/yape/activity?'+params());if(stopped||!alive()||background&&interactive())return;data=result;window.renderYapeActivity.filters={...filters};const scroll=window.scrollY;draw();if(background)window.scrollTo({top:scroll,behavior:'instant'});}
+    catch(e){if(!stopped&&alive()){if(e.status===401)stop();if(!data)root.innerHTML='<div class="yp-error" role="alert"></div>';const error=root.querySelector('[data-yp-error],.yp-error');if(error){error.hidden=false;error.textContent=background?'No se pudo actualizar. Se reintentará automáticamente.':e.message;}if(!background)toast(e.message,true);}}
+    finally{busy=false;if(alive()&&!background)controls(false);}
+  }
   function switchTab(next){if(busy)return;tab=next;window.renderYapeActivity.tab=next;filters.page=1;load();}
   async function exportCsv(){if(busy)return;busy=true;controls(true);try{const result=await api('/api/admin/commerce/yape/activity?'+params(true));if(!alive())return;const safe=v=>'"'+String(v??'').replace(/^(\s*)([=+@\-])/u,"'$1$2").replace(/"/g,'""')+'"';const rows=[['Referencia','Remitente','Monto S/','Código','Mensaje','Fecha Perú','Hora Perú','Estado','Solicitud'],...result.events.map(e=>[e.event_id,e.name,e.amount_cents==null?'':(e.amount_cents/100).toFixed(2),e.code,e.message,date(e.posted_at),hour(e.posted_at),labels[e.state]||e.state,e.claim_id])];const blob=new Blob(['\ufeff'+rows.map(r=>r.map(safe).join(';')).join('\r\n')],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='arcangel-yape-'+day(Date.now())+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);toast(`${result.events.length} registros exportados.`);}catch(e){if(alive())toast(e.message,true);}finally{busy=false;if(alive())controls(false);}}
   const action=document.getElementById('pageAction');action.innerHTML='<button class="button secondary" data-yape-settings>Configurar celular</button> <button class="button primary" data-yape-refresh>Actualizar datos</button>';
   action.querySelector('[data-yape-settings]').onclick=()=>{if(!busy)ctx.openSettings();};action.querySelector('[data-yape-refresh]').onclick=()=>load();
+  function refresh(){if(!alive()){stop();return;}load(true);}
+  function stop(){stopped=true;clearInterval(timer);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('focus',refresh);window.removeEventListener('pagehide',stop);}
+  window.renderYapeActivity.stop=stop;
   await load();
+  if(!stopped&&alive()){timer=setInterval(refresh,5000);document.addEventListener('visibilitychange',refresh);window.addEventListener('focus',refresh);window.addEventListener('pagehide',stop);}
 };

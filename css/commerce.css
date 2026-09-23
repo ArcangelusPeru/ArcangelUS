@@ -4,3 +4,5 @@ html:not([data-commerce=true]) [data-commerce]{display:none!important}.customer-
 
 /* Equal visual weight for both purchase paths. */
 .buy-whatsapp-small{background:linear-gradient(135deg,#25d366,#18b856);border:1px solid #5bea8e;color:#052d15!important;border-radius:10px;box-shadow:0 4px 14px #25d36630;gap:6px;transition:background .18s,box-shadow .18s,transform .18s}.buy-whatsapp-small:hover{background:linear-gradient(135deg,#40e27d,#25d366);box-shadow:0 5px 19px #25d36655;transform:translateY(-1px)}.buy-whatsapp-small:active{transform:translateY(0)}.buy-whatsapp-small svg{width:16px;height:16px;flex-shrink:0;fill:currentColor}@media(prefers-reduced-motion:reduce){.buy-whatsapp-small{transition:none}.buy-whatsapp-small:hover{transform:none}}
+
+.price-signin{font-size:.8rem;color:var(--accent-2,#f87171);font-weight:700;line-height:1.4;text-decoration:underline;display:inline-block}

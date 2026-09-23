@@ -214,7 +214,7 @@ card.innerHTML = `
           <div class="card-price-block">
             <div class="card-price-label">Precio</div>
             ${p.original_pen ? `<div class="card-strikethrough" style="font-size:.72rem;text-decoration:line-through;line-height:1;">S/ ${Number(p.original_pen).toFixed(2)}</div>` : ''}
-            <div class="card-price"><span class="card-price-cur">S/ </span>${Number(p.pen).toFixed(2)}</div>
+            ${p.pen==null?'<a class="price-signin" href="/cuenta">Inicia sesión para ver tu precio</a>':`<div class="card-price"><span class="card-price-cur">S/ </span>${Number(p.pen).toFixed(2)}</div>`}
           </div>
           <button class="card-btn" ${p.out_of_stock ? 'disabled' : ''}>Ver más</button>
         </div>
@@ -324,7 +324,7 @@ function openModal(p, updateURL = true) {
   document.getElementById('mPriceHero').innerHTML = `
   <div style="flex:1">
     ${p.original_pen ? `<div class="modal-price-was">S/ ${Number(p.original_pen).toFixed(2)}</div>` : ''}
-    <div class="modal-price-big"><sup style="font-size:1rem;vertical-align:super;font-weight:700;">S/</sup>${Number(p.pen).toFixed(2)}</div>
+    ${p.pen==null?'<a class="price-signin" href="/cuenta">Inicia sesión para ver tu precio</a>':`<div class="modal-price-big"><sup style="font-size:1rem;vertical-align:super;font-weight:700;">S/</sup>${Number(p.pen).toFixed(2)}</div>`}
     <div class="modal-price-period">Soles peruanos · ${escHtml(p.duration)}</div>
   </div>
   <div class="modal-type-badge" style="
@@ -380,7 +380,7 @@ if (p.note && p.note.trim()) {
 }
 
   const msg = encodeURIComponent(
-    `Hola! Quiero comprar:\n\n🎯 *${p.name}*\n📦 ${p.type} · ${p.duration}\n💰 S/ ${Number(p.pen).toFixed(2)} soles\n\n¿Está disponible? ¿Cómo es el proceso de pago?`
+    `Hola! Quiero comprar:\n\n🎯 *${p.name}*\n📦 ${p.type} · ${p.duration}\n${p.pen==null?'Quisiera consultar el precio.':'💰 S/ '+Number(p.pen).toFixed(2)+' soles'}\n\n¿Está disponible? ¿Cómo es el proceso de pago?`
   );
   document.getElementById('mWA').href = `https://wa.me/${WA}?text=${msg}`;
   const directBuy=document.getElementById('mBuyHere');
@@ -498,6 +498,7 @@ function applyCategories(data) {
   requestAnimationFrame(updateFiltersScrollHint);
 }
 let loadedRevision = null;
+let loadedPrices = null;
 let refreshing = false;
 function applyCatalog(data) {
   shopCategories = data.categories;
@@ -508,6 +509,7 @@ function applyCatalog(data) {
   if (data.settings) { WA = data.settings.whatsapp; window.applyShopSettings(data.settings); }
   renderAll();
   loadedRevision = data.revision || 0;
+  loadedPrices = JSON.stringify(data.products.map(p=>[p.id,p.pen,p.original_pen]));
   const slug = new URLSearchParams(location.search).get('p');
   const product = allProducts.find(p => slugify(p.name) === slug);
   if (product && !product.out_of_stock) openModal(product, false);
@@ -520,7 +522,7 @@ async function refreshCatalog() {
     const response = await fetch('/api/catalog', { cache: 'no-store' });
     if (!response.ok) return;
     const data = await response.json();
-    if (Array.isArray(data.products) && Array.isArray(data.categories) && data.revision !== loadedRevision) applyCatalog(data);
+    if (Array.isArray(data.products) && Array.isArray(data.categories) && (data.revision !== loadedRevision || JSON.stringify(data.products.map(p=>[p.id,p.pen,p.original_pen])) !== loadedPrices)) applyCatalog(data);
   } catch (_) { /* La copia estática conserva el último catálogo guardado. */ }
   finally { refreshing = false; }
 }
