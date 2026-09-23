@@ -82,7 +82,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
     if(req.method==='GET'){
       const user=await requireUser(req);
       if(['/api/shop/session','/api/shop/me'].includes(url.pathname))setCookie(req,res,cookie(req));
-      if(url.pathname==='/api/shop/session')return done(200,{user});
+      if(url.pathname==='/api/shop/session')return done(200,{user,csrf:csrf(cookie(req))});
       if(url.pathname==='/api/shop/yape/current')return done(200,{claim:await commerce.yape.current(user.id),...await commerce.yape.publicStatus()});
       if(url.pathname==='/api/shop/me')return done(200,{user,csrf:csrf(cookie(req)),orders:await commerce.orders(user.id),movements:await commerce.movements(user.id),reports:await commerce.reports(user.id)});
       throw fail(404,'Ruta no encontrada.');
