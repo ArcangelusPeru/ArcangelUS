@@ -120,6 +120,16 @@ function hideMaintenance() {
   if (screen) screen.classList.remove('show');
 }
 
+function productStockBadge(product) {
+  const value = product.stock_quantity;
+  const quantity = product.out_of_stock ? 0 :
+    (value != null && value !== '' && Number.isInteger(Number(value)) && Number(value) >= 0 ? Number(value) : null);
+  const label = quantity === null ? 'Stock: consultar' :
+    quantity === 0 ? 'Stock: 0 · Agotado' : `Stock: ${quantity} ${quantity === 1 ? 'disponible' : 'disponibles'}`;
+  const state = quantity === 0 ? ' is-empty' : quantity === null ? ' is-unconfirmed' : '';
+  return `<div class="card-stock${state}"><svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="M3 8v9l9 5 9-5V8M12 13v9M7.5 5.5l9 5"/></svg><span>${label}</span></div>`;
+}
+
 function showSkeletons(n) {
   gridEl.innerHTML = Array(n).fill(`
     <div class="skeleton">
@@ -210,6 +220,7 @@ card.innerHTML = `
           <span class="card-desc-sep">·</span>
           <span>${safeDur}</span>
         </div>
+        ${productStockBadge(p)}
         <div class="card-footer">
           <div class="card-price-block">
             <div class="card-price-label">Precio</div>
@@ -425,6 +436,32 @@ window.addEventListener('popstate', () => {
     document.documentElement.style.overflow = '';
   }
 });
+
+// Live mode is a local display preference; product data and purchase channels stay intact.
+(function setupLiveMode() {
+  const button = document.getElementById('liveModeToggle');
+  const status = document.getElementById('liveModeStatus');
+  const root = document.documentElement;
+  const key = 'arcangel.store.liveMode';
+  if (!button) return;
+  const apply = (enabled, announce = false) => {
+    root.dataset.liveMode = enabled ? 'on' : 'off';
+    button.setAttribute('aria-pressed', String(enabled));
+    button.title = enabled ? 'Modo Live activado. Pulsa para mostrar las imágenes.' : 'Difuminar las imágenes del catálogo';
+    if (announce && status) status.textContent = enabled
+      ? 'Modo Live activado. Imágenes difuminadas; pasa el cursor sobre un producto para verlo.'
+      : 'Modo Live desactivado. Imágenes visibles.';
+  };
+  apply(root.dataset.liveMode === 'on');
+  button.addEventListener('click', () => {
+    const enabled = root.dataset.liveMode !== 'on';
+    apply(enabled, true);
+    try { localStorage.setItem(key, enabled ? 'on' : 'off'); } catch (_) { /* Works for this visit if storage is unavailable. */ }
+  });
+  window.addEventListener('storage', event => {
+    if (event.key === key || event.key === null) apply(event.newValue === 'on');
+  });
+})();
 
 (function(){
   const btn  = document.querySelector('[data-theme-btn]');
