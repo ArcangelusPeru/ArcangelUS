@@ -42,3 +42,4 @@ dialog{padding:0;color:inherit;background:#10151f;border:1px solid #343e50;borde
 
 /* Stable account identifiers and expiry counters. */
 .account-code{color:#ff8b92;white-space:nowrap;font-variant-numeric:tabular-nums;letter-spacing:.03em}.commerce-tabs[hidden],.commerce-stats[hidden]{display:none}
+.inventory-export-box{display:flex;align-items:center;justify-content:space-between;gap:18px;margin:20px 0 24px;padding:18px 20px;border:1px solid #75404a;border-radius:12px;background:linear-gradient(135deg,#23151c,#171b28)}.inventory-export-box h3{font-size:16px;margin:0 0 6px}.inventory-export-box .help{margin:0;max-width:680px}.inventory-export-box .row-actions{flex-wrap:wrap;justify-content:flex-end}.inventory-export-box .button{white-space:normal}@media(max-width:760px){.inventory-export-box{align-items:flex-start;flex-direction:column}.inventory-export-box .row-actions{justify-content:flex-start;width:100%}.inventory-export-box .button{flex:1}}
