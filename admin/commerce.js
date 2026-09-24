@@ -193,13 +193,12 @@ window.renderCommercePanel=async function(ctx){
       // «Ver datos completos», so no credentials are sent to the browser in a
       // normal page load.
       if(!/Ruta no encontrada|404|no encontrada|Método no permitido/i.test(error.message||''))throw error;
-      const items=inventoryItems.length?inventoryItems:(await api('/api/admin/commerce/inventory')).items||[],orders=data.orders.filter(order=>order.status==='delivered'&&order.account_code);
+      const items=(await api('/api/admin/commerce/inventory')).items||[],ordersById=new Map(data.orders.map(order=>[order.order_id,order])),candidates=items.filter(item=>['sold','external'].includes(item.state));
       const todayValue=today(),matches=[];
-      for(const order of orders){
-        const item=items.find(candidate=>candidate.order_id===order.order_id&&candidate.state==='sold');if(!item)continue;
-        const details=await post('inventory/read',{inventory_id:item.inventory_id}),delivery=details.delivery||{},expiresOn=String(delivery.expires_on||order.expires_on||'').slice(0,10),expired=!!expiresOn&&expiresOn<todayValue;
+      for(const item of candidates){
+        const order=ordersById.get(item.order_id),details=await post('inventory/read',{inventory_id:item.inventory_id}),delivery=details.delivery||{},expiresOn=String(delivery.expires_on||order?.expires_on||'').slice(0,10),expired=!!expiresOn&&expiresOn<todayValue;
         if((kind==='expired')!==expired)continue;
-        matches.push({account_code:order.account_code,product_name:order.product_name,product_id:order.product_id,email:delivery.username||order.account_username||'',password:delivery.password||'',profile:delivery.profile||order.account_profile||'',pin:delivery.pin||'',url:delivery.url||'',buyer_username:order.customer_username||'',buyer_email:order.email||'',order_id:order.order_id,purchased_at:order.created_at,starts_on:delivery.starts_on||order.starts_on||'',expires_on:expiresOn,days_remaining:expiresOn?Math.round((Date.parse(`${expiresOn}T00:00:00Z`)-Date.parse(`${todayValue}T00:00:00Z`))/86400000):null,amount_cents:Number(order.total_amount_cents??order.amount_cents),renewal_total_cents:Number(order.renewal_total_cents||0),delivery_mode:order.delivery_mode,status:expired?'Vencida':'Activa',renewable:!!delivery.renewable});
+        matches.push({account_code:item.account_code,product_name:order?.product_name||productName(item.product_id),product_id:item.product_id,email:delivery.username||order?.account_username||item.username||'',password:delivery.password||'',profile:delivery.profile||order?.account_profile||item.profile||'',pin:delivery.pin||item.pin||'',url:delivery.url||item.url||'',buyer_username:order?.customer_username||'',buyer_email:order?.email||'',order_id:order?.order_id||'',purchased_at:order?.created_at||item.created_at,starts_on:delivery.starts_on||order?.starts_on||'',expires_on:expiresOn,days_remaining:expiresOn?Math.round((Date.parse(`${expiresOn}T00:00:00Z`)-Date.parse(`${todayValue}T00:00:00Z`))/86400000):null,amount_cents:Number(order?.total_amount_cents??order?.amount_cents??0),renewal_total_cents:Number(order?.renewal_total_cents||0),delivery_mode:order?.delivery_mode||'external',status:expired?'Vencida':'Activa',renewable:!!delivery.renewable});
       }
       return matches;
     }
