@@ -436,7 +436,7 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
     },
     async accountExport(kind='active'){
       if(!['active','expired'].includes(kind))throw fail(400,'Tipo de descarga no válido.');
-      const rows=await query(pool,"SELECT i.inventory_id,i.account_number,i.product_id,i.secret,i.order_id,i.created_at AS inventory_created_at,o.product_name,o.amount_cents,o.delivery_mode,o.status AS order_status,o.created_at AS purchased_at,u.username AS customer_username,u.email AS customer_email,(SELECT COALESCE(SUM(-r.amount_cents),0) FROM arcangel_ledger r WHERE r.catalog_id=o.catalog_id AND r.order_id=o.order_id AND r.kind='renewal' AND r.status='approved') AS renewal_total_cents FROM arcangel_inventory i JOIN arcangel_orders o ON o.catalog_id=i.catalog_id AND o.inventory_id=i.inventory_id AND o.order_id=i.order_id JOIN arcangel_users u ON u.catalog_id=o.catalog_id AND u.user_id=o.user_id WHERE i.catalog_id=? AND i.state='sold' AND o.status='delivered' ORDER BY i.created_at DESC,i.inventory_id LIMIT 5000");
+      const rows=await query(pool,"SELECT i.inventory_id,i.account_number,i.product_id,i.secret,i.state,i.order_id,i.created_at AS inventory_created_at,o.product_name,o.amount_cents,o.delivery_mode,o.status AS order_status,o.created_at AS purchased_at,u.username AS customer_username,u.email AS customer_email,(SELECT COALESCE(SUM(-r.amount_cents),0) FROM arcangel_ledger r WHERE r.catalog_id=o.catalog_id AND r.order_id=o.order_id AND r.kind='renewal' AND r.status='approved') AS renewal_total_cents FROM arcangel_inventory i LEFT JOIN arcangel_orders o ON o.catalog_id=i.catalog_id AND o.inventory_id=i.inventory_id AND o.order_id=i.order_id LEFT JOIN arcangel_users u ON u.catalog_id=o.catalog_id AND u.user_id=o.user_id WHERE i.catalog_id=? AND i.state IN ('sold','external') AND (o.order_id IS NULL OR o.status IN ('delivered','refunded')) ORDER BY i.created_at DESC,i.inventory_id LIMIT 5000");
       const today=dateOnly();
       const daysBetween=(from,to)=>Math.round((Date.parse(`${to}T00:00:00Z`)-Date.parse(`${from}T00:00:00Z`))/86400000);
       return rows.flatMap(row=>{
@@ -446,11 +446,11 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
         const remaining=expiresOn?daysBetween(today,expiresOn):null;
         const renewalTotal=Number(row.renewal_total_cents||0),amount=Number(row.amount_cents||0)+renewalTotal;
         return [{
-          account_code:accountCode(row.account_number),product_name:row.product_name,product_id:row.product_id,
+          account_code:accountCode(row.account_number),product_name:row.product_name||row.product_id,product_id:row.product_id,
           email:data.username||'',password:data.password||'',profile:data.profile||'',pin:data.pin||'',url:data.url||'',
           buyer_username:row.customer_username||'',buyer_email:row.customer_email||'',order_id:row.order_id,
           purchased_at:row.purchased_at,starts_on:data.starts_on||'',expires_on:expiresOn,days_remaining:remaining,
-          amount_cents:amount,renewal_total_cents:renewalTotal,delivery_mode:row.delivery_mode,
+          amount_cents:amount,renewal_total_cents:renewalTotal,delivery_mode:row.delivery_mode||'external',
           status:expired?'Vencida':'Activa',renewable:!!data.renewable
         }];
       });
