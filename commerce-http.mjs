@@ -38,6 +38,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/yape/announcements')return done(200,await commerce.yape.announcements(Object.fromEntries(url.searchParams)));
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/reports')return done(200,{reports:await commerce.reports()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/replacements')return done(200,{replacements:await commerce.replacements()});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/account-export')return done(200,{status:url.searchParams.get('status')||'active',generated_at:new Date().toISOString(),items:await commerce.accountExport(url.searchParams.get('status')||'active')});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/inventory')return done(200,{items:await commerce.inventory(text(url.searchParams.get('product_id')||'','el producto',100,false))});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/customers')return done(200,{customers:await commerce.customers(url.searchParams.get('search')||'',url.searchParams.get('status')||'all'),counts:await commerce.customerCounts()});
       if(req.method!=='POST')throw fail(405,'Método no permitido.');

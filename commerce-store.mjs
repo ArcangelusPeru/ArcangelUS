@@ -434,6 +434,27 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
       const rows=await query(pool,"SELECT r.*,old_i.account_number AS old_number,new_i.account_number AS new_number,o.product_name,u.email,u.username AS customer_username FROM arcangel_replacements r JOIN arcangel_orders o ON o.catalog_id=r.catalog_id AND o.order_id=r.order_id JOIN arcangel_users u ON u.catalog_id=r.catalog_id AND u.user_id=r.user_id LEFT JOIN arcangel_inventory old_i ON old_i.catalog_id=r.catalog_id AND old_i.inventory_id=r.old_inventory_id LEFT JOIN arcangel_inventory new_i ON new_i.catalog_id=r.catalog_id AND new_i.inventory_id=r.new_inventory_id WHERE r.catalog_id=? ORDER BY r.created_at DESC,r.replacement_id LIMIT 200");
       return rows.map(row=>{const oldData=delivery(sealer.open(row.old_secret,`${cat}:replacement-old:${row.replacement_id}`)),newData=delivery(sealer.open(row.new_secret,`${cat}:replacement-new:${row.replacement_id}`));return {replacement_id:row.replacement_id,order_id:row.order_id,product_id:row.product_id,product_name:row.product_name,email:row.email,customer_username:row.customer_username,old_inventory_id:row.old_inventory_id,new_inventory_id:row.new_inventory_id,old_account_code:accountCode(row.old_number),new_account_code:accountCode(row.new_number),old_account:oldData.username,new_account:newData.username,created_at:row.created_at,status:'cancelled'};});
     },
+    async accountExport(kind='active'){
+      if(!['active','expired'].includes(kind))throw fail(400,'Tipo de descarga no válido.');
+      const rows=await query(pool,"SELECT i.inventory_id,i.account_number,i.product_id,i.secret,i.order_id,i.created_at AS inventory_created_at,o.product_name,o.amount_cents,o.delivery_mode,o.status AS order_status,o.created_at AS purchased_at,u.username AS customer_username,u.email AS customer_email,(SELECT COALESCE(SUM(-r.amount_cents),0) FROM arcangel_ledger r WHERE r.catalog_id=o.catalog_id AND r.order_id=o.order_id AND r.kind='renewal' AND r.status='approved') AS renewal_total_cents FROM arcangel_inventory i JOIN arcangel_orders o ON o.catalog_id=i.catalog_id AND o.inventory_id=i.inventory_id AND o.order_id=i.order_id JOIN arcangel_users u ON u.catalog_id=o.catalog_id AND u.user_id=o.user_id WHERE i.catalog_id=? AND i.state='sold' AND o.status='delivered' ORDER BY i.created_at DESC,i.inventory_id LIMIT 5000");
+      const today=dateOnly();
+      const daysBetween=(from,to)=>Math.round((Date.parse(`${to}T00:00:00Z`)-Date.parse(`${from}T00:00:00Z`))/86400000);
+      return rows.flatMap(row=>{
+        const data=delivery(sealer.open(row.secret,`${cat}:inventory:${row.inventory_id}`));
+        const expiresOn=String(data.expires_on||'').slice(0,10),expired=!!expiresOn&&expiresOn<today;
+        if((kind==='expired')!==expired)return [];
+        const remaining=expiresOn?daysBetween(today,expiresOn):null;
+        const renewalTotal=Number(row.renewal_total_cents||0),amount=Number(row.amount_cents||0)+renewalTotal;
+        return [{
+          account_code:accountCode(row.account_number),product_name:row.product_name,product_id:row.product_id,
+          email:data.username||'',password:data.password||'',profile:data.profile||'',pin:data.pin||'',url:data.url||'',
+          buyer_username:row.customer_username||'',buyer_email:row.customer_email||'',order_id:row.order_id,
+          purchased_at:row.purchased_at,starts_on:data.starts_on||'',expires_on:expiresOn,days_remaining:remaining,
+          amount_cents:amount,renewal_total_cents:renewalTotal,delivery_mode:row.delivery_mode,
+          status:expired?'Vencida':'Activa',renewable:!!data.renewable
+        }];
+      });
+    },
     async adminData(){
       const topups=await query(pool,"SELECT l.*,u.email,u.username AS customer_username FROM arcangel_ledger l JOIN arcangel_users u ON u.catalog_id=l.catalog_id AND u.user_id=l.user_id WHERE l.catalog_id=? AND l.kind IN ('topup','mp_topup','yape_topup','admin_topup') ORDER BY (l.status='attention') DESC,(l.status='pending') DESC,l.created_at DESC,l.entry_id LIMIT 200");
       const orders=await query(pool,"SELECT o.*,i.account_number,u.email,u.username AS customer_username,(SELECT COALESCE(SUM(-r.amount_cents),0) FROM arcangel_ledger r WHERE r.catalog_id=o.catalog_id AND r.order_id=o.order_id AND r.kind='renewal' AND r.status='approved') AS renewal_total_cents FROM arcangel_orders o JOIN arcangel_users u ON u.catalog_id=o.catalog_id AND u.user_id=o.user_id LEFT JOIN arcangel_inventory i ON i.catalog_id=o.catalog_id AND i.inventory_id=o.inventory_id WHERE o.catalog_id=? ORDER BY o.created_at DESC,o.order_id LIMIT 200");
