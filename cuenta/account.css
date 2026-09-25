@@ -15,3 +15,18 @@
 
 .report-account-button{border-color:#c28e40!important;color:#ffe0a8!important;background:#382c1e!important}.customer-report{border:1px solid #3b4556;border-radius:10px;padding:16px;margin:18px 0;background:#101621}.customer-report p{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.7;color:#cbd7e7}.customer-report h3{font-size:13px;margin:15px 0 6px}.customer-report small{color:#9eacc0}.customer-report .section-heading{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between}#accountReportForm{margin-top:24px}#accountReportForm textarea{min-height:120px}
 .replacement-account-button{border-color:#c15a66!important;color:#ffd9dc!important;background:#4a2029!important}.renewal-account-button{border-color:#4c8f76!important;color:#bff4d8!important;background:#17382f!important}.purchase-card-actions .replacement-account-button,.purchase-card-actions .renewal-account-button{width:100%;white-space:normal;text-align:center}
+.order-action-dialog{width:min(520px,calc(100vw - 32px));max-height:90vh;overflow:auto;border-color:#773444;background:linear-gradient(145deg,#241720,#10151f)}
+.order-action-dialog form{padding:26px;display:grid;gap:20px}
+.order-action-heading{display:flex;align-items:center;gap:12px}
+.order-action-heading svg{width:28px;height:28px;flex-shrink:0;color:#ff788a}
+.order-action-heading h2{font-size:23px;line-height:1.3;margin:0}
+.order-action-account{display:grid;gap:7px;padding:16px;border:1px solid #53313d;border-radius:10px;background:#100f18;overflow-wrap:anywhere}
+.order-action-account span{font-size:12px;color:#b9c5d9}
+.order-action-dialog p{margin:0;font-size:14px;line-height:1.7}
+.order-action-dialog strong{color:#fff}
+.order-action-status{color:#8ee0b7}
+.order-action-status:empty{display:none}
+.order-action-buttons{display:flex;gap:10px;flex-wrap:wrap}
+.order-action-buttons .button{flex:1;white-space:normal}
+.order-action-buttons .primary{background:linear-gradient(120deg,#b82440,#ee3555);border-color:#f6607b;box-shadow:0 4px 16px #b8244040}
+@media(max-width:520px){.order-action-dialog form{padding:20px}.order-action-buttons{flex-direction:column-reverse}}

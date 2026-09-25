@@ -2,9 +2,9 @@
   'use strict';
   const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const money=n=>'S/ '+(Number(n)/100).toFixed(2),date=n=>new Date(n).toLocaleString('es-PE');
-  const reportStates={open:'Pendiente',in_progress:'En revisión',resolved:'Resuelto'},reportDrafts=new Map();
+  const reportStates={open:'Pendiente',in_progress:'En revisión',resolved:'Resuelto'},reportDrafts=new Map(),orderActionRequests=new Map();
   const statuses={yape_pending:'Esperando Yape',review:'Contactar soporte',expired:'Plazo terminado',mp_pending:'Esperando pago',attention:'Contactar soporte',pending:'En revisión',approved:'Aprobado',rejected:'Rechazado',pending_manual:'Pendiente de entrega',delivered:'Entregado',refunded:'Saldo devuelto'};
-  let config,user,csrf='',busy=false,mode=new URLSearchParams(location.search).has('registro')?'register':'login',timer,selected=new URLSearchParams(location.search).get('comprar'),checkoutRequest=null,topupRequest=null,watching=[],checking=false;
+  let config,user,csrf='',busy=false,mode=new URLSearchParams(location.search).has('registro')?'register':'login',timer,selected=new URLSearchParams(location.search).get('comprar'),checkoutRequest=null,topupRequest=null,watching=[],checking=false,displayedOrderIds=[],removeMissingOrders=null;
   const root=$('#accountContent');
   let navigateSection=null;
   const viewState=new Map();
@@ -45,6 +45,7 @@
   $('#recoveryDialog').addEventListener('cancel',e=>e.preventDefault());
   const recoverySupport='https://wa.me/51929688960?text='+encodeURIComponent('Hola, solicito mi código de recuperación porque olvidé mi contraseña y no encuentro el código. ¿Me pueden ayudar a recuperar el acceso a mi cuenta?');
   function auth(){
+    removeMissingOrders=null;displayedOrderIds=[];
     document.body.classList.remove('portal-active','portal-menu-open');navigateSection=null;viewState.clear();document.title='Mi cuenta · Arcangel US';
     root.innerHTML=`<section class="settings-card auth-card"><div class="auth-tabs"><button class="button ${mode==='login'?'primary':'secondary'}" data-mode="login">Iniciar sesión</button><button class="button ${mode==='register'?'primary':'secondary'}" data-mode="register">Registrarse</button></div><h2>${mode==='recover'?'Recuperar acceso':mode==='register'?'Bienvenido a Arcangel US':'Entra a tu cuenta'}</h2>${selected?'<p class="section-note">Inicia sesión para continuar con tu compra.</p>':''}<form id="authForm">${mode==='login'?field('identifier','Usuario o correo electrónico','text','required maxlength="254" autocomplete="username" autocapitalize="none"'): `${mode==='register'?field('username','Usuario','text','required minlength="3" maxlength="40" pattern="[A-Za-z0-9][A-Za-z0-9._\\-]{1,38}[A-Za-z0-9]" autocomplete="username" autocapitalize="none"')+'<p class="form-help">De 3 a 40 caracteres. Letras, números, punto, guion o guion bajo.</p>':''}${field('email','Correo electrónico','email','required maxlength="254" autocomplete="email"')}`}${mode==='recover'?`<div class="recovery-support-row">${field('recovery_code','Código de recuperación','text','required maxlength="64" autocomplete="off" aria-describedby="recoverySupportNote"')}<aside class="recovery-support"><p id="recoverySupportNote">(En caso de olvidar tu código, comunícate con el área de soporte).</p><a class="button secondary small" href="${esc(recoverySupport)}" target="_blank" rel="noopener noreferrer">Contactar soporte por WhatsApp</a></aside></div>`:''}${field('password',mode==='recover'?'Nueva contraseña':'Contraseña','password',`required minlength="12" maxlength="128" autocomplete="${mode==='login'?'current-password':'new-password'}"`)}${mode==='register'?field('confirm_password','Repetir contraseña','password','required minlength="12" maxlength="128" autocomplete="new-password"'):''}${mode==='register'?'<p class="form-help">Usa al menos 12 caracteres. Al registrarte recibirás un código privado de recuperación. El saldo solo se usa para compras en esta tienda y las recargas se acreditan cuando se confirma el pago.</p>':''}<p id="authError" class="account-error" role="alert"></p><button class="button primary" type="submit">${mode==='register'?'Crear mi cuenta':mode==='recover'?'Restablecer contraseña':'Entrar'}</button></form>${mode==='login'?'<p class="registration-invite">¿Aún no tienes cuenta? <button type="button" data-mode="register">Regístrate aquí</button></p>':''}<button class="button ghost small recovery-link" data-mode="recover">Olvidé mi contraseña</button></section>`;
     root.querySelectorAll('[data-mode]').forEach(button=>button.onclick=()=>{mode=button.dataset.mode;auth();});
@@ -59,6 +60,7 @@
     config=await api('config');
     const topupKey='arcangel-topup:'+user.id;try{const pendingRequest=JSON.parse(sessionStorage.getItem(topupKey));if(pendingRequest&&me.movements.some(m=>m.reference==='topup:qr:'+pendingRequest.request_id)){sessionStorage.removeItem(topupKey);topupRequest=null;}}catch{}
     const pending=me.movements.find(m=>m.kind==='topup'&&m.status==='pending');
+    displayedOrderIds=me.orders.map(order=>order.order_id);
     watching=[...me.movements.filter(m=>m.kind==='topup'&&m.status==='pending').map(m=>({id:m.entry_id,type:'topup'})),...me.orders.filter(o=>o.status==='pending_manual').map(o=>({id:o.order_id,type:'order'})),...(me.reports||[]).filter(r=>r.status!=='resolved').map(r=>({id:r.report_id,type:'report',revision:r.revision}))];
     const ready=me.orders.filter(o=>o.status==='delivered').length,waiting=me.orders.filter(o=>o.status==='pending_manual').length;
     document.body.classList.add('portal-active');
@@ -84,6 +86,7 @@
     };
     if($('#paymentQr'))$('#paymentQr').onerror=()=>{$('#paymentQr').hidden=true;$('#qrLoadError').hidden=false;const submit=$('#topupForm button[type=submit]');if(submit){submit.disabled=true;submit.dataset.unavailable='true';}};
     const ordersUI=setupOrders(me.orders,me.reports||[]);
+    removeMissingOrders=ordersUI.removeMissing;
     setupRecords(me,ordersUI.openReport);
     if($('#topupForm')){
       $('#topupForm').onsubmit=async e=>{
@@ -173,7 +176,7 @@
     const chips=[['all','Todas'],['delivered','Entregadas'],['pending_manual','En proceso'],['expiring','Por vencer'],['expired','Vencidas'],['refunded','Saldo devuelto']];
     const filterRoot=$('#purchaseFilters'),list=$('#purchasesList'),dialog=$('#orderInfoDialog');
     $('#closeOrderInfo').onclick=()=>dialog.close();
-    dialog.addEventListener('close',()=>{$('#orderInfoContent').textContent='';});
+    dialog.addEventListener('close',()=>{$('#orderInfoContent').textContent='';delete dialog.dataset.orderId;});
     function reportButton(order){
       const button=document.createElement('button');button.type='button';button.className='button secondary small report-account-button';
       const existing=reports.filter(r=>r.order_id===order.order_id),active=existing.find(r=>r.status!=='resolved');
@@ -181,21 +184,56 @@
       button.onclick=()=>openReport(order);return button;
     }
     function replacementButton(order){
-      const button=document.createElement('button');button.type='button';button.className='button danger small replacement-account-button';button.innerHTML=`${icon('repeat')} <span>CUENTA CAÍDA · REEMPLAZAR</span>`;button.onclick=async()=>{
-        if(busy||!order.replacement_available)return;
-        if(!window.confirm('Solo tienes un intento para reemplazar esta cuenta. ¿Estás seguro de que deseas tomar esta acción?'))return;
-        locked(true);try{await api('replace',{order_id:order.order_id,request_id:crypto.randomUUID()});await dashboard();toast('Cuenta reemplazada. Revisa los nuevos datos en Mis cuentas y compras.');}catch(error){handle(error);}finally{locked(false);}
-      };return button;
+      const button=document.createElement('button');button.type='button';button.className='button danger small replacement-account-button';button.innerHTML=`${icon('repeat')} <span>CUENTA CAÍDA · REEMPLAZAR</span>`;
+      button.onclick=()=>{if(order.replacement_available)openOrderAction(order,'replace');};return button;
     }
     function renewalButton(order){
       if(!order.account?.renewable)return null;
-      const button=document.createElement('button');button.type='button';button.className='button secondary small renewal-account-button';button.innerHTML=`${icon('refresh')} <span>Renovar cuenta · ${money(order.renewal_price_cents||0)}</span>`;button.onclick=async()=>{
-        if(busy)return;
-        if(!window.confirm('La renovación cargará '+money(order.renewal_price_cents||0)+' de tu saldo y ampliará la fecha de término. ¿Deseas continuar?'))return;
-        locked(true);try{await api('renew',{order_id:order.order_id,request_id:crypto.randomUUID(),expected_cents:order.renewal_price_cents});await dashboard();toast('Renovación realizada. La fecha de término fue actualizada.');}catch(error){handle(error);}finally{locked(false);}
-      };return button;
+      const button=document.createElement('button');button.type='button';button.className='button secondary small renewal-account-button';button.innerHTML=`${icon('refresh')} <span>Renovar cuenta · ${money(order.renewal_price_cents||0)}</span>`;
+      button.onclick=()=>openOrderAction(order,'renew');return button;
+    }
+    function openOrderAction(order,kind){
+      if(busy||$('#orderActionDialog'))return;
+      const renewal=kind==='renew',opener=document.activeElement,prompt=document.createElement('dialog');
+      const requestKey=user.id+':'+kind+':'+order.order_id;
+      const success=renewal?'Renovación realizada. La fecha de término fue actualizada.':'Cuenta reemplazada. Revisa los nuevos datos en Mis cuentas y compras.';
+      let submitting=false,completed=false;
+      prompt.id='orderActionDialog';prompt.className='order-action-dialog';
+      prompt.setAttribute('aria-labelledby','orderActionTitle');prompt.setAttribute('aria-describedby','orderActionDescription');
+      prompt.innerHTML=`<form><div class="order-action-heading">${icon(renewal?'refresh':'repeat')}<h2 id="orderActionTitle">${renewal?'Renovar cuenta':'Reemplazar cuenta caída'}</h2></div>
+        <div class="order-action-account"><strong>${esc(order.product_name)}</strong><span>${esc(order.account_code||'')} · ${esc(order.account?.username||'')}</span></div>
+        <p id="orderActionDescription">${renewal?`Se descontarán <strong>${money(order.renewal_price_cents||0)}</strong> de tu billetera y se ampliará la fecha de término por ${esc(order.product_duration||'el período del producto')}.`:'Solo tienes un intento para reemplazar esta cuenta. Se entregará otra cuenta disponible del mismo producto con un correo diferente y la anterior quedará cancelada. ¿Estás seguro de que deseas continuar?'}</p>
+        <p class="order-action-status" role="status" aria-live="polite"></p><p class="account-error" role="alert" hidden></p>
+        <div class="order-action-buttons"><button type="button" class="button secondary" data-action-cancel autofocus>Cancelar solicitud</button><button type="submit" class="button primary">${renewal?'Aceptar y renovar':'Acepto, reemplazar cuenta'}</button></div></form>`;
+      const form=prompt.querySelector('form'),cancel=prompt.querySelector('[data-action-cancel]'),submit=prompt.querySelector('[type=submit]'),status=prompt.querySelector('[role=status]'),errorBox=prompt.querySelector('[role=alert]'),submitLabel=submit.textContent;
+      cancel.onclick=()=>{if(!submitting)prompt.close();};
+      prompt.addEventListener('cancel',event=>{if(submitting)event.preventDefault();});
+      prompt.addEventListener('close',()=>{prompt.remove();if(opener?.isConnected)opener.focus();});
+      form.onsubmit=async event=>{
+        event.preventDefault();if(submitting||busy)return;
+        submitting=true;locked(true);submit.disabled=true;cancel.disabled=true;errorBox.hidden=true;
+        status.textContent=completed?'Actualizando tus compras…':renewal?'Procesando renovación…':'Buscando una cuenta de reemplazo…';submit.textContent='Procesando…';
+        try{
+          if(!completed){
+            // Reuse a request after an uncertain response so a retry cannot debit twice.
+            let request=orderActionRequests.get(requestKey);
+            if(!request){request={order_id:order.order_id,request_id:crypto.randomUUID(),...(renewal?{expected_cents:order.renewal_price_cents}:{})};orderActionRequests.set(requestKey,request);}
+            await api(kind,request);completed=true;orderActionRequests.delete(requestKey);
+          }
+          await dashboard();prompt.close();toast(success);
+        }catch(error){
+          if(error.status===401){prompt.close();if(dialog.open)dialog.close();handle(error);}
+          else if(completed){status.textContent=success;errorBox.textContent='No se pudo actualizar la lista. Pulsa Actualizar mis compras para verla.';errorBox.hidden=false;}
+          else{status.textContent='';errorBox.textContent=error.message;errorBox.hidden=false;}
+        }finally{
+          submitting=false;locked(false);submit.disabled=false;cancel.disabled=false;
+          submit.textContent=completed?'Actualizar mis compras':submitLabel;if(completed)cancel.textContent='Cerrar';
+        }
+      };
+      document.body.append(prompt);prompt.showModal();
     }
     function openReport(order){
+      dialog.dataset.orderId=order.order_id;
       const items=reports.filter(r=>r.order_id===order.order_id),active=items.find(r=>r.status!=='resolved'),content=$('#orderInfoContent');
       dialog.classList.remove('order-detail-dialog');
       $('#orderInfoTitle').textContent='Soporte · '+order.product_name;
@@ -209,6 +247,7 @@
       if(!dialog.open)dialog.showModal();
     }
     function openDetails(o){
+      dialog.dataset.orderId=o.order_id;
       const a=o.account,box=$('#orderInfoContent'),reference=o.order_id.slice(0,8).toUpperCase();
       const longDay=value=>value?new Date(value+'T12:00:00Z').toLocaleDateString('es-PE',{timeZone:'America/Lima',weekday:'long',day:'numeric',month:'long',year:'numeric'}):'Sin definir';
       const fact=(label,value,symbol,kind='')=>`<div class="order-fact ${kind}"><dt>${esc(label)}</dt><dd>${icon(symbol)}<span>${esc(value)}</span></dd></div>`;
@@ -294,16 +333,28 @@
       list.querySelectorAll('[data-order-info]').forEach(button=>button.onclick=()=>openDetails(orders.find(o=>o.order_id===button.dataset.orderInfo)));
       if(busy)locked(true);
     }
+    function removeMissing(nextOrders){
+      const currentIds=new Set((nextOrders||[]).map(order=>order.order_id));
+      const missing=orders.filter(order=>!currentIds.has(order.order_id));
+      if(!missing.length)return 0;
+      const missingIds=new Set(missing.map(order=>order.order_id));
+      orders.splice(0,orders.length,...orders.filter(order=>!missingIds.has(order.order_id)));
+      missing.forEach(order=>reportDrafts.delete(order.order_id));
+      displayedOrderIds=orders.map(order=>order.order_id);
+      if(dialog.open&&missingIds.has(dialog.dataset.orderId))dialog.close();
+      draw();
+      return missing.length;
+    }
     $('#searchOrders').value=query;$('#searchOrders').oninput=e=>{query=e.target.value.trim().toLocaleLowerCase('es');page=1;draw();};draw();
-    return {openReport};
+    return {openReport,removeMissing};
   }
   function handle(error){if(error.status===401){user=null;csrf='';auth();}toast(error.message,true);}
   async function checkUpdates(){
-    if(!user||busy||checking||document.hidden||!watching.length||$('#topupForm [name=amount_soles]')?.value||$('#searchOrders')?.value||root.querySelector('[data-order-password][aria-pressed=true],#orderInfoDialog[open]')||document.activeElement?.matches('input,select,textarea'))return;
+    if(!user||busy||checking||$('#orderActionDialog')||document.hidden||(!watching.length&&!displayedOrderIds.length))return;
     checking=true;const current=user.id;
-    try{const me=await api('me');if(user?.id!==current||busy)return;const updates=watching.map(item=>item.type==='report'?(me.reports||[]).find(r=>r.report_id===item.id&&r.revision!==item.revision):item.type==='topup'?me.movements.find(m=>m.entry_id===item.id&&m.status!=='pending'):me.orders.find(o=>o.order_id===item.id&&o.status!=='pending_manual')).filter(Boolean);if(updates.length){locked(true);try{await dashboard();toast(updates.some(x=>x.report_id)?'Soporte respondió a tu reporte. Revisa Reportes.':updates.some(x=>x.kind==='topup'&&x.status==='approved')?'Recarga aprobada. Tu saldo ya está disponible.':updates.some(x=>x.kind==='topup'&&x.status==='rejected')?'Tu solicitud fue revisada. Consulta el detalle en Mis recargas.':'Tu pedido tiene una actualización. Revisa Mis cuentas y compras.');}finally{locked(false);}}}catch(error){if(error.status===401)handle(error);}finally{checking=false;}
+    try{const me=await api('me');if(user?.id!==current||busy)return;const removed=removeMissingOrders?removeMissingOrders(me.orders):0;const interacting=!!($('#topupForm [name=amount_soles]')?.value||$('#searchOrders')?.value||root.querySelector('[data-order-password][aria-pressed=true],#orderInfoDialog[open]')||document.activeElement?.matches('input,select,textarea'));const updates=watching.map(item=>item.type==='report'?(me.reports||[]).find(r=>r.report_id===item.id&&r.revision!==item.revision):item.type==='topup'?me.movements.find(m=>m.entry_id===item.id&&m.status!=='pending'):me.orders.find(o=>o.order_id===item.id&&o.status!=='pending_manual')).filter(Boolean);if(removed)toast('La tienda retiró cuentas vencidas. Tu lista de cuentas está actualizada.');if(interacting)return;if(updates.length){locked(true);try{await dashboard();toast(updates.some(x=>x.report_id)?'Soporte respondió a tu reporte. Revisa Reportes.':updates.some(x=>x.kind==='topup'&&x.status==='approved')?'Recarga aprobada. Tu saldo ya está disponible.':updates.some(x=>x.kind==='topup'&&x.status==='rejected')?'Tu solicitud fue revisada. Consulta el detalle en Mis recargas.':'Tu pedido tiene una actualización. Revisa Mis cuentas y compras.');}finally{locked(false);}}}catch(error){if(error.status===401)handle(error);}finally{checking=false;}
   }
-  setInterval(checkUpdates,15000);document.addEventListener('visibilitychange',checkUpdates);
+  setInterval(checkUpdates,15000);document.addEventListener('visibilitychange',checkUpdates);window.addEventListener('focus',checkUpdates);
   async function start(){config=await api('config');if(!config.enabled){root.innerHTML='<section class="settings-card"><h2>Las cuentas de clientes aún no están disponibles</h2><a class="button primary" href="/">Volver a la tienda</a></section>';return;}try{await dashboard();}catch(error){if(error.status===401)auth();else throw error;}}
   window.addEventListener('beforeunload',e=>{if(busy||[...reportDrafts.values()].some(d=>d.message.trim())){e.preventDefault();e.returnValue='';}});
   start().catch(error=>{root.textContent=error.message;});
