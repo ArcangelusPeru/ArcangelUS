@@ -40,7 +40,7 @@ export function vault(encoded){
 export function delivery(value){
   if(!value||typeof value!=='object')throw fail(400,'Introduce los datos de entrega.');
   if(value.password!==undefined&&(typeof value.password!=='string'||value.password.length>500))throw fail(400,'Revisa la contraseña de entrega.');
-  const result={username:text(value.username||'','el usuario',300,false),password:value.password||'',notes:text(value.notes||'','las instrucciones',5000,false),renewable:value.renewable===true||value.renewable==='true'||value.renewable==='on'};
+  const result={username:text(value.username||'','el usuario',300,false),password:value.password||'',notes:text(value.notes||'','las instrucciones',5000,false),replaceable:value.replaceable===true||value.replaceable==='true'||value.replaceable==='on',renewable:value.renewable===true||value.renewable==='true'||value.renewable==='on'};
   for(const [field,label,max] of [['url','la URL',1000],['profile','el perfil',100],['pin','el PIN',100]]){
     const content=text(value[field]??'',label,max,false);if(content)result[field]=content;
   }
