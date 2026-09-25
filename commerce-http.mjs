@@ -40,6 +40,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/replacements')return done(200,{replacements:await commerce.replacements()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/expired-accounts')return done(200,{items:await commerce.expiredAccounts()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/account-export')return done(200,{status:url.searchParams.get('status')||'active',generated_at:new Date().toISOString(),items:await commerce.accountExport(url.searchParams.get('status')||'active')});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/coupons')return done(200,{items:await commerce.coupons.list()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/inventory')return done(200,{items:await commerce.inventory(text(url.searchParams.get('product_id')||'','el producto',100,false))});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/customers')return done(200,{customers:await commerce.customers(url.searchParams.get('search')||'',url.searchParams.get('status')||'all'),counts:await commerce.customerCounts()});
       if(req.method!=='POST')throw fail(405,'Método no permitido.');
@@ -58,6 +59,8 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
         case '/api/admin/commerce/yape/release':return done(200,await commerce.yape.release(data));
         case '/api/admin/commerce/yape/review':return done(200,await commerce.yape.review(data));
         case '/api/admin/commerce/topup':return done(200,await commerce.approveTopup(data.entry_id,data.approved,data.note));
+        case '/api/admin/commerce/coupons/create':return done(201,await commerce.coupons.create(data));
+        case '/api/admin/commerce/coupons/disable':return done(200,await commerce.coupons.disable(data.code));
         case '/api/admin/commerce/inventory':return done(201,await commerce.addInventory(text(data.product_id,'el producto',100),data.items,data.request_id));
         case '/api/admin/commerce/inventory/read':return done(200,await commerce.inventoryDetails(data.inventory_id));
         case '/api/admin/commerce/inventory/update':return done(200,await commerce.updateInventory(data.inventory_id,data.delivery,data.revision));
@@ -127,6 +130,8 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
         if(!payments)throw fail(503,'Mercado Pago aún no está disponible.');
         await commerce.limit('mp-status:'+user.id,20,60);
         return done(200,await payments.status(user,data.id));
+      case '/api/shop/coupons/quote':await commerce.limit('coupon:'+user.id,20,60);return done(200,await commerce.couponQuote(user.id,data));
+      case '/api/shop/coupons/redeem':await commerce.limit('coupon:'+user.id,20,60);return done(200,await commerce.coupons.redeem(user.id,data.code));
       case '/api/shop/purchase':return done(200,await commerce.purchase(user.id,data));
       case '/api/shop/order':return done(200,{delivery:await commerce.orderSecret(user.id,data.order_id)});
       case '/api/shop/replace':return done(200,await commerce.replaceAccount(user.id,data));

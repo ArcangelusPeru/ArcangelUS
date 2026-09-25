@@ -179,6 +179,21 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(url.pathname==='/healthz')return send(200,{status:'ok'});
       if(url.pathname.startsWith('/api/')){
         if(req.headers.origin&&!access.sameOrigin(req))throw fail(403,'Origen no permitido.');
+        const tutorialPath=url.pathname.replace('/api/admin/tutorials','/api/tutorials');
+        if(['GET','HEAD'].includes(req.method)&&(tutorialPath==='/api/tutorials'||tutorialPath.startsWith('/api/tutorials/'))){
+          if(!store?.commerce)throw fail(503,'Tutoriales requiere la tienda configurada.');
+          const customer=await store.commerce.userFromToken(customerToken(req,store.catalogId));
+          if(url.pathname.startsWith('/api/admin/')||!customer)access.require(req);
+          if(!['GET','HEAD'].includes(req.method))throw fail(405,'Método no permitido.');
+          if(tutorialPath==='/api/tutorials')return send(200,{items:await store.listTutorials()});
+          const id=tutorialPath.slice('/api/tutorials/'.length);
+          if(!/^[a-f0-9-]{36}$/.test(id))throw fail(404,'Video no encontrado.');
+          const media=await store.tutorialMedia(id),saved=media?await store.getImage(media):null;
+          if(!saved)throw fail(404,'Video no encontrado.');
+          const size=saved.bytes.length;let start=0,end=size-1,status=200;
+          if(req.headers.range){const m=/^bytes=(\d+)-(\d*)$/.exec(req.headers.range);if(!m||Number(m[1])>=size||(m[2]&&Number(m[2])<Number(m[1]))){res.writeHead(416,{'Content-Range':`bytes */${size}`});return res.end();}start=Number(m[1]);end=m[2]?Math.min(Number(m[2]),size-1):size-1;status=206;res.setHeader('Content-Range',`bytes ${start}-${end}/${size}`);}
+          res.writeHead(status,{'Content-Type':saved.mime,'Accept-Ranges':'bytes','Content-Length':end-start+1});return res.end(req.method==='HEAD'?undefined:saved.bytes.subarray(start,end+1));
+        }
         if(await routeCommerce(req,res,url,send))return;
         if(req.method==='GET'&&url.pathname==='/api/catalog')return send(200,await publicState(req));
         if(req.method==='GET'&&url.pathname==='/api/admin/session')return send(200,access.status(req));
@@ -202,6 +217,16 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
         }
         if(!['PUT','POST'].includes(req.method))throw fail(405,'Método no permitido.');
         const {token}=access.checkWrite(req);
+        if(req.method==='POST'&&url.pathname==='/api/admin/tutorials'){
+          if(!store)throw fail(503,'Configura la base de datos para subir videos.');
+          const title=(url.searchParams.get('title')||'').trim();if(!title||title.length>160)throw fail(400,'Escribe un título de hasta 160 caracteres.');
+          const bytes=await body(req,300*1024*1024),mime=req.headers['content-type'];
+          const mp4=mime==='video/mp4'&&bytes.length>=12&&bytes.toString('ascii',4,8)==='ftyp';
+          const webm=mime==='video/webm'&&bytes.length>=4&&bytes.readUInt32BE(0)===0x1a45dfa3;
+          if(!mp4&&!webm)throw fail(400,'Selecciona un video MP4 o WebM válido (hasta 300 MB).');
+          const id=randomUUID(),media=`tutorials/${id}.${mp4?'mp4':'webm'}`;
+          await store.putImage(media,mime,bytes);await store.addTutorial(id,title,media);return send(201,{id,title});
+        }
         if(req.method==='POST'&&url.pathname==='/api/admin/initialize'){
           if(!store)throw fail(400,'El catálogo local ya está configurado.');
           if(await readState())throw fail(409,'El catálogo ya existe. No se ha sobrescrito.');

@@ -1,3 +1,4 @@
+import {createCoupons} from './coupons.mjs';
 import { randomUUID } from 'node:crypto';
 import { createMercadoStore } from './mercado-store.mjs';
 import { createYapeStore } from './yape-store.mjs';
@@ -89,7 +90,17 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
     const quote=refundBreakdown(order,account,Number(renewals.total),dateOnly());
     return {...quote,order_id:order.order_id,revision:sealer.mac(JSON.stringify([order.order_id,order.status,order.delivery_secret,quote]))};
   }
+  const coupons=await createCoupons({pool,transaction,cat,catalogLock,userLock});
   return {
+    coupons,
+    async couponQuote(userId,input){return transaction(async db=>{
+      const snapshot=await catalogLock(db),u=await userLock(db,userId);
+      if(u.blocked||u.deleted_at)throw fail(403,'Acceso desactivado.');
+      const p=snapshot.data.products.find(p=>p.id===input.product_id&&p.active&&p.checkout_mode==='automatic');
+      if(!p)throw fail(409,'Producto no disponible.');
+      const c=await coupons.eligible(db,input.code,userId,'discount',p.id),original=soles(priceForRole(p,u.role)),discount=Math.round(original*c.value/100);
+      return {code:c.code,original_cents:original,discount_cents:discount,amount_cents:original-discount};
+    });},
     mercado:await createMercadoStore({pool,transaction,catalogId:cat}),
     yape:await createYapeStore({pool,transaction,catalogId:cat,sealer}),
     async syncCatalog(db,next,previous){
@@ -245,14 +256,14 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
       return transaction(async db=>{const snapshot=await catalogLock(db);const [row]=await query(db,'SELECT state FROM arcangel_inventory WHERE catalog_id=? AND inventory_id=? FOR UPDATE',[id]);if(!row)throw fail(404,'Cuenta no encontrada.');if(row.state===state)return {state};if(row.state!=='available')throw fail(409,'La cuenta ya no está disponible.');await db.execute('UPDATE arcangel_inventory SET state=? WHERE catalog_id=? AND inventory_id=?',[state,cat,id]);await stock(db,snapshot.data);await updateCatalog(db,cat,snapshot.row,snapshot.data);return {state};});
     },
     async purchase(userId,input){
-      const id=requestId(input.request_id),productId=text(input.product_id,'el producto',100),expected=cents(input.expected_cents);
+      const id=requestId(input.request_id),productId=text(input.product_id,'el producto',100),expected=input.expected_cents===0&&input.coupon_code?0:cents(input.expected_cents);
       return transaction(async db=>{
         const snapshot=await catalogLock(db),user=await userLock(db,userId);if(user.blocked||user.deleted_at)throw fail(403,'Acceso desactivado.');
         const [old]=await query(db,'SELECT * FROM arcangel_orders WHERE catalog_id=? AND order_id=? FOR UPDATE',[id]);
         if(old){if(old.user_id!==userId||old.product_id!==productId||Number(old.amount_cents)!==expected)throw fail(409,'La operación ya existe con otros datos.');const [item]=old.inventory_id?await query(db,'SELECT account_number FROM arcangel_inventory WHERE catalog_id=? AND inventory_id=?',[old.inventory_id]):[];return {order:orderView({...old,account_number:item?.account_number}),balance_cents:Number(user.balance_cents)};}
         const product=snapshot.data.products.find(p=>p.id===productId);
         if(!product||!product.active||product.checkout_mode!=='automatic')throw fail(409,'Este producto no admite compras con saldo.');
-        const amount=soles(priceForRole(product,user.role));if(amount!==expected)throw fail(409,'El precio cambió. Revisa el precio y confirma nuevamente.');
+        const original=soles(priceForRole(product,user.role));const coupon=input.coupon_code?await coupons.eligible(db,input.coupon_code,userId,'discount',productId):null;const discount=coupon?Math.round(original*coupon.value/100):0;const amount=original-discount;if(amount!==expected)throw fail(409,'El precio cambió. Revisa el precio y confirma nuevamente.');
         if(product.out_of_stock||product.stock_quantity===0)throw fail(409,'Producto agotado.');
         if(Number(user.balance_cents)<amount)throw fail(402,'Saldo insuficiente. Recarga antes de comprar.');
         const [inventory]=await query(db,"SELECT * FROM arcangel_inventory WHERE catalog_id=? AND product_id=? AND state='available' ORDER BY created_at,inventory_id LIMIT 1 FOR UPDATE",[productId]);
@@ -266,6 +277,7 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
         const reserved=false,status='delivered';
         await db.execute('UPDATE arcangel_users SET balance_cents=balance_cents-? WHERE catalog_id=? AND user_id=?',[amount,cat,userId]);
         await query(db,'INSERT INTO arcangel_orders(catalog_id,order_id,user_id,product_id,product_name,amount_cents,delivery_mode,status,inventory_id,delivery_secret,stock_reserved) VALUES(?,?,?,?,?,?,?,?,?,?,?)',[id,userId,productId,product.name,amount,product.checkout_mode,status,inventory?.inventory_id||null,secret,reserved]);
+        if(coupon)await coupons.consume(db,coupon,userId,'purchase:'+id,discount);
         const initialPeriods=billingPeriods({created_at:new Date()},account,amount);
         if(initialPeriods.length)await db.execute('UPDATE arcangel_orders SET billing_periods=? WHERE catalog_id=? AND order_id=?',[JSON.stringify(initialPeriods),cat,id]);
         await query(db,"INSERT INTO arcangel_ledger(catalog_id,entry_id,user_id,kind,amount_cents,status,reference,note) VALUES(?,?,?,'purchase',?,'approved',?,?)",[randomUUID(),userId,-amount,'purchase:'+id,product.name]);

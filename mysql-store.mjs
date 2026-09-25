@@ -24,6 +24,7 @@ export async function createMySQLStore({database,catalogId,commerceEnabled=false
   const pool=mysql.createPool({...database,charset:'utf8mb4',connectionLimit:4,waitForConnections:true,queueLimit:20,connectTimeout:10000,multipleStatements:false});
   try{
     for(const sql of [
+      `CREATE TABLE IF NOT EXISTS arcangel_tutorials (catalog_id VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,id CHAR(36) NOT NULL,title VARCHAR(160) NOT NULL,media VARCHAR(200) NOT NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(catalog_id,id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
       `CREATE TABLE IF NOT EXISTS arcangel_catalogs (catalog_id VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin PRIMARY KEY, revision BIGINT UNSIGNED NOT NULL, document LONGTEXT NOT NULL, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS arcangel_backups (catalog_id VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, revision BIGINT UNSIGNED NOT NULL, document LONGTEXT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(catalog_id,revision)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
       `CREATE TABLE IF NOT EXISTS arcangel_images (catalog_id VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, image_path VARCHAR(200) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, mime VARCHAR(40) NOT NULL, byte_length INT UNSIGNED NOT NULL, sha256 CHAR(64) NOT NULL, PRIMARY KEY(catalog_id,image_path)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -40,6 +41,9 @@ export async function createMySQLStore({database,catalogId,commerceEnabled=false
   try{if(commerceEnabled)commerce=await createCommerceStore({pool,transaction,catalogId,sealer,updateCatalog});}catch(error){await pool.end();throw error;}
   return {
     kind:'mysql',catalogId,commerce,
+    async listTutorials(){const [rows]=await pool.execute('SELECT id,title,created_at FROM arcangel_tutorials WHERE catalog_id=? ORDER BY created_at DESC,id',[catalogId]);return rows;},
+    async addTutorial(id,title,media){await pool.execute('INSERT INTO arcangel_tutorials(catalog_id,id,title,media) VALUES(?,?,?,?)',[catalogId,id,title,media]);},
+    async tutorialMedia(id){const [rows]=await pool.execute('SELECT media FROM arcangel_tutorials WHERE catalog_id=? AND id=?',[catalogId,id]);return rows[0]?.media;},
     async read(){
       const [rows]=await pool.execute('SELECT revision,document FROM arcangel_catalogs WHERE catalog_id=?',[catalogId]);
       if(!rows.length)return null;
