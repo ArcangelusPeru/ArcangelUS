@@ -38,6 +38,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/yape/announcements')return done(200,await commerce.yape.announcements(Object.fromEntries(url.searchParams)));
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/reports')return done(200,{reports:await commerce.reports()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/replacements')return done(200,{replacements:await commerce.replacements()});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/expired-accounts')return done(200,{items:await commerce.expiredAccounts()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/account-export')return done(200,{status:url.searchParams.get('status')||'active',generated_at:new Date().toISOString(),items:await commerce.accountExport(url.searchParams.get('status')||'active')});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/inventory')return done(200,{items:await commerce.inventory(text(url.searchParams.get('product_id')||'','el producto',100,false))});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/customers')return done(200,{customers:await commerce.customers(url.searchParams.get('search')||'',url.searchParams.get('status')||'all'),counts:await commerce.customerCounts()});
@@ -61,12 +62,15 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
         case '/api/admin/commerce/inventory/read':return done(200,await commerce.inventoryDetails(data.inventory_id));
         case '/api/admin/commerce/inventory/update':return done(200,await commerce.updateInventory(data.inventory_id,data.delivery,data.revision));
         case '/api/admin/commerce/inventory/retire':return done(200,await commerce.retireInventory(data.inventory_id,data.state));
+        case '/api/admin/commerce/inventory/delete':return done(200,await commerce.deleteInventoryAccounts(data.items));
+        case '/api/admin/commerce/expired-accounts/delete':return done(200,await commerce.deleteExpiredAccounts(data.items));
         case '/api/admin/commerce/deliver':return done(200,await commerce.deliverOrder(data.order_id,data.delivery));
         case '/api/admin/commerce/order/read':return done(200,await commerce.orderDetails(data.order_id));
       case '/api/admin/commerce/order/update':return done(200,await commerce.updateOrder(data.order_id,data.delivery,data.revision));
         case '/api/admin/commerce/replacements':return done(200,{replacements:await commerce.replacements()});
         case '/api/admin/commerce/report/update':return done(200,await commerce.updateReport(data.report_id,data.status,data.reply,data.revision));
-        case '/api/admin/commerce/refund':return done(200,await commerce.refundOrder(data.order_id));
+        case '/api/admin/commerce/refund/quote':return done(200,await commerce.refundQuote(data.order_id));
+        case '/api/admin/commerce/refund':return done(200,await commerce.refundOrder(data.order_id,data.revision));
         case '/api/admin/commerce/customer':return done(200,await commerce.blockUser(data.user_id,data.blocked));
         case '/api/admin/commerce/customer/create':return done(201,await commerce.createCustomer(data.username,data.email,data.password,data.role));
         case '/api/admin/commerce/customer/password':return done(200,await commerce.changeCustomerPassword(data.user_id,data.password));
