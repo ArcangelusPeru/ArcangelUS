@@ -106,7 +106,7 @@
     const paths={copy:'M9 5V2h6v3M8 4H5v18h14V4h-3M8 4h8v4H8z',plus:'M12 5v14M5 12h14',mail:'M3 5h18v14H3zM3 5l9 7 9-7',key:'M15 3a6 6 0 1 1-4 10l-7 7H2v-4l7-7a6 6 0 0 1 6-6Zm2 4h.01',calendar:'M4 5h16v17H4zM8 2v6m8-6v6M4 11h16',check:'m7 12 3 3 7-7M5 3h14v18H5z',clock:'M12 8v4l3 2M5 3 2 6m17-3 3 3M5 19l-1 2m15-2 1 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z',device:'M6 2h12v20H6zM10 18h4',lock:'M6 10V7a6 6 0 0 1 12 0v3M5 10h14v11H5z',coins:'M15 5c0 2-3 3-6 3S3 7 3 5s3-3 6-3 6 1 6 3ZM3 5v6c0 2 3 3 6 3m6-9v4M3 11v6c0 2 3 3 6 3m12-7c0 2-3 3-6 3s-6-1-6-3 3-3 6-3 6 1 6 3Zm-12 0v6c0 2 3 3 6 3s6-1 6-3v-6',menu:'M4 6h16M4 12h16M4 18h16',home:'m3 11 9-8 9 8M5 10v11h5v-7h4v7h5V10',user:'M16 7a4 4 0 1 1-8 0 4 4 0 0 1 8 0ZM4 21v-2a8 8 0 0 1 16 0v2',bag:'M5 7h14l1 14H4L5 7ZM8 8V6a4 4 0 0 1 8 0v2',wallet:'M20 7H5a2 2 0 0 1 0-4h13v4M3 5v14a2 2 0 0 0 2 2h15V7M20 11h-6v6h6',history:'M3 12a9 9 0 1 0 3-6M3 3v6h6m3-3v6l4 2',support:'M4 13v-2a8 8 0 0 1 16 0v2M4 12H2v7h4v-7H4Zm16 0h2v7h-4v-7h2ZM19 19c0 3-5 3-7 3',refresh:'M20 7a9 9 0 0 0-15-2L2 8m0-6v6h6m-4 9a9 9 0 0 0 15 2l3-3m0 6v-6h-6',alert:'M12 3 2 21h20L12 3Zm0 6v5m0 3h.01',repeat:'M17 1l4 4-4 4M3 5h18M7 23l-4-4 4-4M21 19H3',logout:'M9 3H4v18h5m5-15 6 6-6 6m-6-6h12',eye:'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12Zm13 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',chevron:'m9 5 7 7-7 7'};
     return `<svg class="portal-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${paths[name]||paths.bag}"/></svg>`;
   }
-  const portalGroups=[['account','Mi cuenta','user',[['acceso','Mi perfil']]],['orders','Gestionar pedidos','bag',[['compras','Mis cuentas y compras']]],['wallet','Gestionar recargas','wallet',[['billetera','Recargar'],['recargas','Mis recargas']]],['history','Historial','history',[['historial','Mi historial']]],['reports','Reportes','support',[['reportes','Mis reportes']]]];
+  const portalGroups=[['account','Mi cuenta','user',[['acceso','Mi perfil']]],['orders','Gestionar pedidos','bag',[['compras','Mis cuentas y compras']]],['wallet','Gestionar recargas','wallet',[['billetera','Recargar'],['recargas','Mis recargas']]],['history','Historial','history',[['historial','Mi historial']]]];
   function portalSidebar(){
     return `<button class="portal-scrim" type="button" aria-label="Cerrar menú" tabindex="-1"></button><aside class="portal-sidebar" id="portalSidebar"><a class="portal-logo" href="/"><img src="/logo/arcangel-us.png" alt=""><span>Arcangel US<small>MI CUENTA</small></span></a><nav aria-label="Secciones de mi cuenta">${portalGroups.map(([id,label,symbol,links])=>`<div class="portal-nav-group" data-nav-group="${id}"><button class="portal-nav-toggle" type="button" aria-expanded="false" aria-controls="nav-${id}">${icon(symbol)}<span>${label}</span>${icon('chevron')}</button><div class="portal-subnav" id="nav-${id}" hidden>${links.map(([section,text])=>`<a href="#${section}" data-section="${section}">${text}</a>`).join('')}</div></div>`).join('')}</nav><div class="portal-sidebar-footer"><span class="portal-online-dot"></span> Tu espacio de cliente<small>Compras y saldo en un solo lugar</small></div></aside>`;
   }
@@ -275,10 +275,8 @@
         <p class="order-copy-status" role="status" aria-live="polite"></p><div class="order-detail-actions"></div>`;
       box.querySelector('img').onerror=e=>{e.target.hidden=true;};
       const actions=box.querySelector('.order-detail-actions');
-      if(a||reports.some(r=>r.order_id===o.order_id))actions.append(reportButton(o));
       box.querySelector('[data-detail-support]')?.addEventListener('click',()=>openReport(o));
       if(a){
-        const renewal=renewalButton(o);if(renewal)actions.append(renewal);
         if(o.replacement_available)actions.append(replacementButton(o));
         $('#copyAllOrderData').onclick=()=>copyOrder(o,$('#copyAllOrderData'));
         box.querySelectorAll('[data-copy-field]').forEach(button=>button.onclick=async()=>{
@@ -321,7 +319,6 @@
             </div>
           </div>
           <footer class="purchase-card-actions">
-            ${hasSupport?`<button type="button" class="purchase-support" data-order-support="${esc(o.order_id)}" aria-label="Soporte de ${esc(o.product_name)}${activeReport?' · Reporte abierto':''}">${icon('support')}<span>Soporte</span>${activeReport?'<span class="support-report-dot" title="Reporte abierto"></span>':''}</button>`:''}
             <div class="purchase-primary-actions"><button type="button" class="button small purchase-details" data-order-info="${esc(o.order_id)}">${icon('eye')} VER DETALLES</button>${a&&a.renewable?`<button type="button" class="button small purchase-renew" data-renew-order="${esc(o.order_id)}" title="Renovar por ${money(o.renewal_price_cents||0)}">${icon('refresh')} RENOVAR</button>`:''}</div>
           </footer>
         </article>`;
