@@ -69,9 +69,12 @@ function getPriorityCardImageLimit() {
 }
 
 function getCardImageAttrs(index) {
-  const isPriority = index < getPriorityCardImageLimit();
-  const fetchPriority = index < Math.min(4, getPriorityCardImageLimit()) ? 'high' : 'auto';
-  return `loading="${isPriority ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${fetchPriority}"`;
+  // El catálogo tiene tarjetas compactas y varias pueden quedar visibles al
+  // mismo tiempo. Lazy loading deja banners vacíos hasta que el puntero pasa
+  // por encima en algunos navegadores, porque ese gesto fuerza su carga.
+  // Cárgalos desde el primer render para que la tarjeta sea estable.
+  const fetchPriority = index < 4 ? 'high' : 'auto';
+  return `loading="eager" decoding="async" fetchpriority="${fetchPriority}"`;
 }
 
 function preloadImage(url, fetchPriority = 'auto') {
@@ -244,14 +247,6 @@ card.innerHTML = `
         openModal(p);
       }
     });
-    // Precargar banner en hover (desktop) o al primer toque (movil)
-    let preloadUrl = null;
-    if (bannerUrl) preloadUrl = bannerUrl;
-    if (preloadUrl) {
-      const preload = function() { preloadImage(preloadUrl, 'high'); };
-      card.addEventListener('mouseenter', preload, { once: true });
-      card.addEventListener('touchstart', preload, { once: true, passive: true });
-    }
     card.addEventListener('keydown', e => {
       if(e.target!==card)return;
       if (e.key === 'Enter' || e.key === ' ') {
