@@ -15,16 +15,18 @@ export function deliveryCodes(order){
  }
  return [...new Set(values)].map(x=>x.slice(0,4000)).slice(0,100);
 }
-export async function createFazerOrders({pool,cat,sealer,client}){
+export async function createFazerOrders({pool,cat,sealer,client,exchangeRate}){
  await pool.query(`CREATE TABLE IF NOT EXISTS arcangel_fazer_orders(catalog_id VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,order_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,user_id CHAR(36) NOT NULL,product_id VARCHAR(40) NOT NULL,product_name VARCHAR(600) NOT NULL,kind VARCHAR(20) NOT NULL,amount_cents BIGINT NOT NULL,fingerprint CHAR(64) NOT NULL,request_secret MEDIUMTEXT NOT NULL,delivery_secret MEDIUMTEXT NULL,provider_id VARCHAR(80) NULL,status VARCHAR(24) NOT NULL,attempts INT NOT NULL DEFAULT 0,lease_until DATETIME NULL,next_check DATETIME NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(catalog_id,order_id),KEY due_orders(catalog_id,status,next_check)) ENGINE=InnoDB`);
  const tx=async fn=>{const db=await pool.getConnection();try{await db.beginTransaction();const result=await fn(db);await db.commit();return result;}catch(e){await db.rollback();throw e;}finally{db.release();}};
  const view=r=>({order_id:r.order_id,product_name:r.product_name,amount_cents:Number(r.amount_cents),status:r.status,created_at:r.created_at,codes:r.delivery_secret?sealer.open(r.delivery_secret,cat+':fazer-delivery:'+r.order_id):[]});
  const find=async(id,user)=>{const [[r]]=await pool.execute('SELECT * FROM arcangel_fazer_orders WHERE catalog_id=? AND order_id=? AND user_id=?',[cat,id,user]);return r;};
  async function quote(productId,user){
-  const [[p]]=await pool.execute('SELECT * FROM arcangel_fazer_products WHERE catalog_id=? AND product_id=? AND published=TRUE',[cat,String(productId)]);if(!p)throw fail(404,'Producto no disponible.');
+  let [[p]]=await pool.execute('SELECT * FROM arcangel_fazer_products WHERE catalog_id=? AND product_id=? AND published=TRUE',[cat,String(productId)]);if(!p)throw fail(404,'Producto no disponible.');
   const data=await (await client()).offers(p.kind,p.category_id),offer=(data.offers||data.keys||data.cards||[]).find(o=>String(o.offer_id??o.key_id??o.card_id)===p.offer_id);
   if(!offer||Number(offer.stock??1)<1||Number(offer.min_order_quantity??1)>1)throw fail(409,'Esta oferta no está disponible por unidad.');
-  if(!Number.isFinite(Number(offer.price_usd))||Number(offer.price_usd)>Number(p.cost_usd))throw fail(409,'La tienda debe actualizar el costo de este producto.');
+  if(!Number.isFinite(Number(offer.price_usd))||Number(offer.price_usd)<=0)throw fail(409,'FazerCards devolvió un costo no válido.');
+  const currentCost=Number(offer.price_usd),rate=Number(await exchangeRate()),nextCents=Math.ceil(currentCost*rate*100);
+  if(rate>0&&(currentCost!==Number(p.cost_usd)||Number(p.client_cents)!==nextCents)) { await pool.execute('UPDATE arcangel_fazer_products SET cost_usd=?,client_cents=?,reseller_cents=? WHERE catalog_id=? AND product_id=?',[currentCost,nextCents,nextCents,cat,p.product_id]); p={...p,cost_usd:currentCost,client_cents:nextCents,reseller_cents:nextCents}; }
   return {p,image_url:providerImage(data.imageurl)||providerImage(p.image_url),fields:p.kind==='topups'?schemaFields(data.fields):[],amount_cents:Number(user.role==='reseller'?p.reseller_cents:p.client_cents),note:String(p.description??data.note??''),region:String(data.region||''),platform:String(data.platform||'')};
  }
  async function process(id){

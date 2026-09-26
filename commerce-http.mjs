@@ -54,6 +54,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       switch(url.pathname){
         case '/api/admin/commerce/fazer/products':return done(200,await commerce.fazer.products.save(data));
         case '/api/admin/commerce/fazer/visibility':return done(200,await commerce.fazer.products.visibility(data));
+        case '/api/admin/commerce/fazer/auto-publish':return done(200,await commerce.fazer.products.autoPublish(data));
         case '/api/admin/commerce/fazer/config':return done(200,await commerce.fazer.save(data));
         case '/api/admin/commerce/yape/pair':{
           let origin;try{origin=new URL(publicOrigin);}catch{throw fail(409,'Configura APP_URL con https://arcangelpro.com antes de vincular.');}
