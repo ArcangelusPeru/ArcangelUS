@@ -16,7 +16,11 @@ export function publicFazerProduct(row,role){
 }
 export async function createFazerProducts({pool,cat,client}){
  await pool.query(`CREATE TABLE IF NOT EXISTS arcangel_fazer_products(catalog_id VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,product_id VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,kind VARCHAR(20) NOT NULL,category_id VARCHAR(200) NOT NULL,offer_id VARCHAR(200) NOT NULL,name VARCHAR(300) NOT NULL,category_name VARCHAR(300) NOT NULL,description TEXT NOT NULL,client_cents BIGINT NOT NULL,reseller_cents BIGINT NOT NULL,cost_usd DECIMAL(16,6) NOT NULL,published BOOLEAN NOT NULL DEFAULT FALSE,PRIMARY KEY(catalog_id,product_id)) ENGINE=InnoDB`);
- await pool.query("ALTER TABLE arcangel_fazer_products ADD COLUMN IF NOT EXISTS image_url TEXT NULL");
+ const [imageColumns]=await pool.query("SHOW COLUMNS FROM arcangel_fazer_products LIKE 'image_url'");
+ if(!imageColumns.length){
+  try{await pool.query("ALTER TABLE arcangel_fazer_products ADD COLUMN image_url TEXT NULL");}
+  catch(error){if(error.code!=='ER_DUP_FIELDNAME')throw error;}
+ }
  const list=async()=>{const [rows]=await pool.execute('SELECT * FROM arcangel_fazer_products WHERE catalog_id=? ORDER BY name',[cat]);return rows;};
  return {list,public:async role=>(await list()).filter(r=>r.published).map(r=>publicFazerProduct(r,role)),
  async save(raw){const input=publicationInput(raw),api=await client(),data=await api.offers(input.kind,input.category_id);
