@@ -61,3 +61,9 @@ body .hero .proof-claim,body .hero .proof-copy{font-size:15px}
 @media(max-width:500px){#gamePackages{padding:18px;max-height:calc(100dvh - 24px)}#gamePackages .package-cover{height:155px}#gamePackages .package-grid{grid-template-columns:1fr}#gamePackages header h2{font-size:20px}}
 
 .favorite-toggle{position:absolute;top:8px;right:8px;z-index:5;border:1px solid #6b3b61;background:#160f20e6;color:#ff779b;border-radius:50%;width:32px;height:32px;font-size:21px;line-height:1;cursor:pointer}.favorite-toggle:hover{background:#ff365f;color:#fff}
+/* Preferred desktop scale; keep mobile sizing and viewport-bound dialogs usable. */
+@media(min-width:1000px){
+ html{zoom:1.1}
+ body{min-height:calc(100dvh / 1.1)}
+ #gamePackages{width:min(760px,calc(100vw / 1.1 - 32px));max-height:calc(100dvh / 1.1 - 40px)}
+}
