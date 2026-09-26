@@ -149,6 +149,11 @@ function showSkeletons(n) {
   `).join('');
 }
 
+// Editorial display priority for the LATAM storefront; not live sales statistics.
+const rechargePriority=['free fire','mobile legends','pubg mobile','call of duty','genshin impact','honor of kings','blood strike','honkai: star rail','wuthering waves','zenless zone zero','delta force','arena breakout','8 ball pool','brawl stars','clash of clans','clash royale','league of legends','valorant','roblox','pokemon','ea sports','fc mobile','efootball','ragnarok','goddess of victory','identity v'];
+function rechargeRank(product){const name=String(product.brand||product.name||'').toLowerCase();const rank=rechargePriority.findIndex(game=>name.startsWith(game));return rank<0?rechargePriority.length:rank;}
+let catalogLimit=24;
+let catalogViewKey="";
 function renderAll() {
   const q = searchQuery.toLowerCase().trim();
   let list = allProducts.filter(p => {
@@ -169,8 +174,14 @@ function renderAll() {
     });
   }
 
+  const viewKey=activeFilter+'|'+q;if(viewKey!==catalogViewKey){catalogLimit=24;catalogViewKey=viewKey;}
+  const groups=new Set();list=list.filter(p=>{if(p.checkout_mode!=='provider')return true;const key=window.gameGroupKey(p);if(groups.has(key))return false;groups.add(key);return true;});
+  if(activeFilter==='recargas-juegos')list.sort((a,b)=>rechargeRank(a)-rechargeRank(b)||(/latam|global/i.test(b.brand)?1:0)-(/latam|global/i.test(a.brand)?1:0)||String(a.brand||a.name).localeCompare(String(b.brand||b.name),'es'));
+  document.getElementById('catalogMore')?.remove();
+  const total=list.length;list=list.slice(0,catalogLimit);
   gridEl.innerHTML = '';
-  countEl.textContent = list.length;
+  countEl.textContent = total;
+  if(total>catalogLimit){const more=document.createElement('button');more.id='catalogMore';more.className='card-btn';more.style.cssText='display:block;margin:24px auto;padding:14px 28px';more.textContent='Ver más productos ('+(total-catalogLimit)+')';more.onclick=()=>{catalogLimit+=24;renderAll();};gridEl.after(more);}
 
   if (!list.length) {
     gridEl.innerHTML = `<div class="empty show">
@@ -186,7 +197,7 @@ function renderAll() {
     card.className = 'card';
     card.setAttribute('role','button');
     card.setAttribute('tabindex','0');
-    card.style.transition = `opacity .45s cubic-bezier(.16,1,.3,1) ${i * 55}ms, transform .45s cubic-bezier(.16,1,.3,1) ${i * 55}ms`;
+    card.style.transition = `opacity .45s cubic-bezier(.16,1,.3,1) ${Math.min(i,5) * 25}ms, transform .45s cubic-bezier(.16,1,.3,1) ${Math.min(i,5) * 25}ms`;
     card.style.transform = 'translateY(20px) scale(.97)';
     requestAnimationFrame(() => requestAnimationFrame(() => {
       card.style.opacity = '1';
@@ -237,7 +248,7 @@ card.innerHTML = `
         </div>
       </div>
     `;
-    if(p.checkout_mode==='provider'){card.querySelector('.card-body').innerHTML='<button class="favorite-toggle" type="button" aria-label="Marcar favorito">'+(favoriteIds().includes(String(p.id))?'♥':'♡')+'</button><h3 class="card-title">'+escHtml(p.brand)+'</h3><p>Recargas y paquetes disponibles</p><button class="card-btn">Ver paquetes →</button>';card.querySelector('.favorite-toggle').onclick=e=>{e.stopPropagation();toggleFavorite(p.id)};card.onclick=()=>window.openGamePackages(p,allProducts);card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();window.openGamePackages(p,allProducts);}};gridEl.appendChild(card);return;}
+    if(p.checkout_mode==='provider'){card.querySelector('.card-body').innerHTML='<button class="favorite-toggle" type="button" aria-label="Marcar favorito">'+(favoriteIds().includes(String(p.id))?'♥':'♡')+'</button><h3 class="card-title">'+escHtml(p.filter==='recargas-juegos'?window.gameDisplayName(p):p.brand)+'</h3><p>Recargas y paquetes disponibles</p><button class="card-btn">Ver paquetes →</button>';card.querySelector('.favorite-toggle').onclick=e=>{e.stopPropagation();toggleFavorite(p.id)};card.onclick=()=>window.openGamePackages(p,allProducts);card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();window.openGamePackages(p,allProducts);}};gridEl.appendChild(card);return;}
     const purchases=document.createElement('div');purchases.className='card-purchase-options';
     const canBuy=['automatic','provider'].includes(p.checkout_mode)&&!p.out_of_stock; const showWhatsApp=p.whatsapp_enabled!==false;
     const balanceLink=canBuy?`<a class="buy-with-balance" data-commerce href="${p.checkout_mode==='provider'?'/digital.html?comprar=':'/cuenta?comprar='}${encodeURIComponent(p.id)}">COMPRAR ACÁ</a>`:'';
