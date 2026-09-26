@@ -954,10 +954,70 @@ a{color:inherit;text-decoration:none}
   .logo-mark:active{transform:scale(0.95)}
 }
 
+/* Category cards and grouped games, matching the store's red theme. */
+.filters-scroll{gap:12px;align-items:center;justify-content:flex-start;padding:12px 3px 18px}
+.filters-scroll>.filter-chip{width:112px;min-height:150px;padding:16px 9px 18px;border:1px solid #633039;border-radius:19px;background:linear-gradient(145deg,rgba(59,18,30,.88),rgba(12,8,18,.96));box-shadow:inset 0 1px 0 #ffffff12,0 8px 20px #0003;position:relative;color:#eee8ed}
+.filters-scroll>.filter-chip.active{border-color:#ff4b60;background:linear-gradient(145deg,#661827,#1d0912);box-shadow:0 0 18px #f52c4544,inset 0 0 18px #ff354222}
+.filters-scroll>.filter-chip.active:after{content:'';position:absolute;bottom:9px;width:30px;height:3px;border-radius:4px;background:#ff6574;box-shadow:0 0 9px #ff354a}
+.filters-scroll .filter-chip-media{width:72px;height:72px;border-color:#a54251;background:#200d18}
+.filters-scroll .filter-chip.active .filter-chip-media{border-color:#ff6574;background:#541321;box-shadow:0 0 16px #f5364944}
+.filters-scroll .filter-chip:hover .filter-chip-media{border-color:#ff6574;box-shadow:0 0 16px #f5364933}
+.filters-scroll .filter-chip-label{font-size:12px;line-height:1.3}
+.games-category-panel{display:grid;grid-template-columns:repeat(3,90px);gap:14px 10px;flex-shrink:0;padding:17px 18px 20px;margin-left:10px;border:1px solid #74333f;border-radius:21px;background:linear-gradient(145deg,rgba(44,17,29,.95),rgba(19,7,16,.97));box-shadow:inset 0 1px 0 #ffffff12,0 12px 28px #0003}
+.games-category-title{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding-bottom:13px;border-bottom:1px solid #68313d;color:#f6edf0;font-size:16px}
+.games-category-title:before{content:'';width:28px;height:28px;background:url('logo/fazer-topups.svg') center/contain no-repeat}
+.games-category-title:after{content:'›';margin-left:auto;color:#cdbfc6;font-size:24px;line-height:1}
+.games-category-panel .filter-chip{width:90px;color:#ede4e9}
+.games-category-panel .filter-chip.active .filter-chip-label{color:#ff7787}
+.search-box{max-width:620px;flex-basis:620px;height:55px;border:2px solid #cf3c50;background:linear-gradient(120deg,#1a0c18dd,#350e1cdd);box-shadow:0 0 22px #f52c4518}
+.search-box:focus-within{border-color:#ff6574;box-shadow:0 0 0 3px #ff465522;background:#260e1c}
+.search-box svg{color:#f2ced7}
+@media(max-width:600px){.filters-scroll>.filter-chip{width:98px;min-height:142px}.games-category-panel{grid-template-columns:repeat(3,78px);padding:14px;gap:12px 6px}.games-category-panel .filter-chip{width:78px}.search-box{min-width:0;height:48px}}
+#gamePackages{width:min(780px,94vw);max-height:88vh;overflow:auto;background:#13121b;color:#fff;border:1px solid #a83c50;border-radius:20px;padding:26px}#gamePackages::backdrop{background:#000b;backdrop-filter:blur(5px)}#gamePackages header{display:flex;justify-content:space-between;align-items:center}#gamePackages header button{background:transparent;color:#fff;border:0;font-size:30px;cursor:pointer}.package-cover{width:100%;height:180px;object-fit:contain;background:#0c0d13;border-radius:12px}.package-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.package-option{padding:18px;border:1px solid #50313e;border-radius:12px;background:#21131b;color:#fff;display:grid;gap:12px;text-decoration:none}.package-option:hover{border-color:#ff5369;background:#401925}.package-option span{color:#ff7b89}@media(max-width:600px){.package-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 <link rel="stylesheet" href="css/arcangel.css?v=1.11.0">
+<link rel="stylesheet" href="css/sidebar-preserved.css?v=1">
+
 </head>
 <body data-v="fix-logo-20260530">
+<aside class="catalog-sidebar" aria-label="Categorías del catálogo">
+  <div class="sidebar-brand"><img src="logo/arcangel-us.png" alt="Arcangel US"><strong>Arcangel<br><span>US</span></strong></div>
+  <div class="sidebar-help"><img src="logo/arcangel-us.png" alt=""><div><b>¿Necesitas ayuda?</b><small>Contáctanos por:</small><a href="https://wa.me/51929688960" target="_blank" rel="noopener">◉ WhatsApp&nbsp; ›</a></div></div>
+</aside>
+<style>
+body{overflow-x:hidden}
+.header,.hero,.controls-wrap,main.wrap,.footer{width:calc(100% - 258px)!important;max-width:none!important;box-sizing:border-box}
+.header-inner{flex-wrap:wrap;gap:12px}.header-right{flex-wrap:wrap;justify-content:flex-end;min-width:0}.customer-store-nav{flex-wrap:wrap}
+.controls-wrap .search-row{width:100%;justify-content:stretch}.controls-wrap .search-box{flex:1!important;max-width:none!important;width:100%;min-width:0}
+.catalog-sidebar .filters-section{min-height:0;flex:1;overflow-x:hidden!important}.catalog-sidebar .filters-scroll{overflow:visible;align-items:stretch}.catalog-sidebar .filters-section:after{display:none!important}.sidebar-brand,.sidebar-help{flex-shrink:0}
+@media(max-width:700px){.header,.hero,.controls-wrap,main.wrap,.footer{width:100%!important}.catalog-sidebar .filters-section{max-height:320px}}
+body{background:radial-gradient(ellipse at 75% 8%,rgba(112,10,31,.32),transparent 35%),linear-gradient(135deg,#080913 0%,#100b18 46%,#080911 100%)!important}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opacity:.38;background:linear-gradient(145deg,transparent 22%,rgba(184,25,46,.28) 22.3%,transparent 35%,transparent 58%,rgba(153,21,38,.22) 58.3%,transparent 75%);}
+.catalog-sidebar{position:fixed;z-index:30;left:10px;top:10px;bottom:10px;width:248px;border:1px solid rgba(130,116,173,.35);border-radius:14px;background:linear-gradient(180deg,rgba(26,17,35,.96),rgba(8,10,23,.97));box-shadow:0 16px 44px #0007;display:flex;flex-direction:column;padding:16px 7px}
+.catalog-sidebar .filters-section{display:block;overflow:auto;scrollbar-width:thin;scrollbar-color:#7d2945 transparent;margin:4px 0 0}.catalog-sidebar .filters-scroll{display:grid;grid-template-columns:1fr;gap:5px;padding:0}.catalog-sidebar .filters-scroll>.filter-chip{width:auto;min-height:0;height:43px;display:flex;flex-direction:row;justify-content:flex-start;gap:12px;padding:7px 12px;border-radius:9px}.catalog-sidebar .filters-scroll>.filter-chip .filter-chip-media{width:27px;height:27px;flex:0 0 27px}.catalog-sidebar .filters-scroll>.filter-chip .filter-chip-label{font-size:12px;text-align:left}.catalog-sidebar .filters-scroll>.filter-chip.active:after{bottom:5px;left:10px;width:22px;height:2px}.catalog-sidebar .games-category-panel{display:grid;grid-template-columns:repeat(3,1fr);margin:8px 0 0;padding:10px 6px;gap:7px 3px;border-radius:12px}.catalog-sidebar .games-category-title{font-size:11px;padding-bottom:7px}.catalog-sidebar .games-category-title:before{width:19px;height:19px}.catalog-sidebar .games-category-panel .filter-chip{width:auto;padding:4px 2px;min-height:58px}.catalog-sidebar .games-category-panel .filter-chip-media{width:30px;height:30px}.catalog-sidebar .games-category-panel .filter-chip-label{font-size:9px}.catalog-sidebar>.sidebar-nav{display:none}
+.sidebar-brand{height:138px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;color:#fff;font-size:14px;text-align:center}.sidebar-brand img{width:128px;height:115px;object-fit:contain;filter:drop-shadow(0 0 15px #e12237)}.sidebar-brand strong{display:none}.sidebar-brand span{color:#f12f46}
+.sidebar-nav{display:grid;gap:4px;border-top:1px solid #ffffff10;padding-top:14px}.sidebar-nav a{display:flex;align-items:center;gap:14px;color:#d4cce4;text-decoration:none;border:1px solid #49426788;border-radius:9px;padding:11px 17px;font-size:14px;font-weight:600;background:#171528aa}.sidebar-nav a:hover,.sidebar-nav a.active{color:#fff;border-color:#ff304c;background:linear-gradient(90deg,#e51738,#ff3550);box-shadow:0 0 14px #ef254844}.sidebar-nav a:first-letter{font-size:21px}.sidebar-help{margin-top:auto;border:1px solid #3d294e;border-radius:12px;padding:10px;display:flex;gap:8px;align-items:center;background:linear-gradient(135deg,#24152d,#130d20);color:#eee}.sidebar-help img{width:54px;height:54px;object-fit:contain}.sidebar-help b,.sidebar-help small,.sidebar-help a{display:block}.sidebar-help b{font-size:12px}.sidebar-help small{color:#aaa0b7;font-size:11px;margin:3px 0}.sidebar-help a{color:#00e689;font-size:12px;text-decoration:none}
+.header,.hero,.controls-wrap,main,.footer{margin-left:258px!important}.header{background:rgba(7,8,18,.88)!important;border-bottom:1px solid #33213c!important}.hero{max-width:none!important;padding-top:18px!important;background:radial-gradient(ellipse at 50% 22%,rgba(188,24,49,.34),transparent 55%),linear-gradient(180deg,rgba(39,12,30,.65),transparent)!important;border-bottom:1px solid #391a2b}.hero .logo-scene{margin-top:-10px}.hero-logo-text{filter:drop-shadow(0 0 18px #c31839)!important}.brand-name{font-size:2.2rem!important}.hero-sub{font-size:1rem!important}.trust-strip{margin-top:18px!important}.search-box{max-width:none!important;flex-basis:auto!important}.controls-wrap{padding-top:14px!important}.grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))!important}
+@media(max-width:700px){.catalog-sidebar{position:relative;left:auto;top:auto;bottom:auto;width:auto;margin:8px;min-height:0}.sidebar-brand{height:72px;flex-direction:row}.sidebar-brand img{width:70px;height:65px}.sidebar-nav{grid-template-columns:repeat(2,1fr)}.sidebar-help{display:none}.header,.hero,.controls-wrap,main,.footer{margin-left:0!important}}
+</style>
+<script>
+  document.addEventListener('DOMContentLoaded',()=>{
+    const sidebar=document.querySelector('.catalog-sidebar'), filters=document.querySelector('.filters-section'), help=document.querySelector('.sidebar-help');
+    if(sidebar&&filters&&help) sidebar.insertBefore(filters,help);
+  });
+</script>
+<style>
+/* Spacious sidebar rows, including digital categories. */
+.catalog-sidebar .filters-scroll{gap:10px;padding:6px 3px 14px}
+.catalog-sidebar .filters-scroll>.filter-chip{height:49px;padding:10px 12px;gap:13px}
+.catalog-sidebar .games-category-panel{grid-template-columns:minmax(0,1fr);gap:10px;margin:5px 0 0;padding:12px 0 0;border:0;border-top:1px solid #633039;border-radius:0;background:transparent;box-shadow:none}
+.catalog-sidebar .games-category-title{padding:3px 9px 10px;font-size:12px}
+.catalog-sidebar .games-category-panel .filter-chip{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;width:100%;min-height:49px;padding:10px 12px;gap:13px;border:1px solid #633039;border-radius:9px;background:linear-gradient(145deg,rgba(59,18,30,.88),rgba(12,8,18,.96));color:#eee8ed}
+.catalog-sidebar .games-category-panel .filter-chip-media{width:27px;height:27px;flex:0 0 27px}
+.catalog-sidebar .games-category-panel .filter-chip-label{font-size:12px;line-height:1.35;text-align:left}
+.catalog-sidebar .games-category-panel .filter-chip.active{border-color:#ff4b60;background:linear-gradient(145deg,#661827,#1d0912);box-shadow:0 0 18px #f52c4544}
+.catalog-sidebar .sidebar-help{margin-top:12px}
+</style>
 <a href="#main-content" class="skip-link">Saltar al contenido principal</a>
 <a href="#filters" class="skip-link">Saltar a filtros</a>
 <div id="app">
@@ -1192,7 +1252,7 @@ a{color:inherit;text-decoration:none}
 <script src="js/shop-settings.js?v=1.11.0"></script>
 <script src="js/waves.js?v=1.11.0"></script>
 <script src="js/commerce.js?v=1.11.0"></script>
-<script src="js/index.js?v=1.11.0"></script>
+<script src="js/game-packages.js?v=1"></script><script src="js/index.js?v=1.11.0"></script>
 
 <script>
 // ── LOGO PARTICLES ──

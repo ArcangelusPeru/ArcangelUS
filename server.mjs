@@ -1,3 +1,4 @@
+import { withFazerCategories } from './fazer-categories.mjs';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -26,7 +27,7 @@ export const DEFAULT_SETTINGS = {
   wave_primary:'#ef2c2c',wave_secondary:'#f87171',wave_teal:'#2dd4bf',
 };
 const fallbackImages={streaming:'logo/streaming.png',musica:'logo/musica.png',software:'logo/licenciasysoftware.png','diseño':'logo/diseñoyeducacion.png'};
-const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.woff2':'font/woff2','.ttf':'font/ttf'};
+const MIME={'.svg':'image/svg+xml','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.woff2':'font/woff2','.ttf':'font/ttf'};
 const fail=(status,message)=>Object.assign(new Error(message),{status});
 const jsonText=value=>JSON.stringify(value,null,2).replace(/</g,'\\u003c');
 const script=state=>'const CATALOG = '+jsonText(state)+';\n';
@@ -132,8 +133,8 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   }
   }
   const readState=async()=>store?store.read():structuredClone(state);
-  const requiredState=async()=>{const value=await readState();if(!value)throw fail(503,'El catálogo aún no está configurado. Entra al panel para importar un respaldo o iniciar la tienda.');return {...value,settings:{...DEFAULT_SETTINGS,...value.settings}};};
-  const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;return catalogForRole(await requiredState(),store?.commerce?(user?.role||null):'customer');};
+  const requiredState=async()=>{const value=await readState();if(!value)throw fail(503,'El catálogo aún no está configurado. Entra al panel para importar un respaldo o iniciar la tienda.');return withFazerCategories({...value,settings:{...DEFAULT_SETTINGS,...value.settings}});};
+  const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(await requiredState(),role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
   const legacyFile=path.join(storageRoot,'catalog.json');
   const hasLegacy=()=>fs.access(legacyFile).then(()=>true,()=>false);
   async function getImage(relative){
@@ -278,7 +279,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(relative==='index.html'&&store&&!await readState()){
         res.writeHead(200,{'Content-Type':MIME['.html']});return res.end(req.method==='HEAD'?undefined:'<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Arcangel US</title><body style="font:18px system-ui;max-width:560px;margin:15vh auto;padding:24px"><h1>Estamos preparando la tienda</h1><p>El catálogo estará disponible cuando termine la configuración.</p></body></html>');
       }
-      if(relative!=='index.html'&&!/^(admin|cuenta|css|js|assets|banners|logo|uploads)\//.test(relative))throw fail(404,'No encontrado.');
+      if(relative!=='index.html'&&relative!=='digital.html'&&!/^(admin|cuenta|css|js|assets|banners|logo|uploads)\//.test(relative))throw fail(404,'No encontrado.');
       const file=path.resolve(root,relative);let ext=path.extname(file).toLowerCase();
       if(!file.startsWith(root+path.sep)||!MIME[ext])throw fail(404,'No encontrado.');
       let bytes;
@@ -291,6 +292,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       res.writeHead(200,{'Content-Type':MIME[ext]});res.end(req.method==='HEAD'?undefined:bytes);
     }catch(e){if(!res.headersSent)send(e.status||503,{error:e.status?e.message:'No se pudo acceder al almacenamiento. Los cambios no se han confirmado. Recarga el panel para comprobar su estado.'});else res.destroy();if(!e.status)console.error('[STORAGE_ERROR]',e.code||e.name);}
   });
+  if(store?.commerce){let working=false;const timer=setInterval(async()=>{if(working)return;working=true;try{await store.commerce.fazer.orders.tick();}catch{console.error('[FAZER_RECONCILE_FAILED]');}finally{working=false;}},30000);timer.unref();server.on('close',()=>clearInterval(timer));}
   if(store)server.on('close',()=>store.close().catch(()=>{}));
   return server;
 }
@@ -310,3 +312,7 @@ const canonical=async file=>fs.realpath(file).catch(()=>path.resolve(file));
 if(process.argv[1]&&await canonical(process.argv[1])===await canonical(fileURLToPath(import.meta.url))){
   startShopServer().catch(error=>{console.error(`[STARTUP_ERROR] ${error.code||error.name}: ${error.message}`);process.exitCode=1;});
 }
+
+
+
+

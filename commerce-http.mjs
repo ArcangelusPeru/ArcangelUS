@@ -41,11 +41,20 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/expired-accounts')return done(200,{items:await commerce.expiredAccounts()});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/account-export')return done(200,{status:url.searchParams.get('status')||'active',generated_at:new Date().toISOString(),items:await commerce.accountExport(url.searchParams.get('status')||'active')});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/coupons')return done(200,{items:await commerce.coupons.list()});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/fazer/orders')return done(200,{items:await commerce.fazer.orders.list()});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/fazer/products')return done(200,{items:await commerce.fazer.products.list()});
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/fazer/config')return done(200,await commerce.fazer.config());
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/fazer/status')return done(200,await commerce.fazer.status());
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/fazer/catalog')return done(200,await commerce.fazer.categories(url.searchParams.get('kind'),url.searchParams.get('cursor')));
+      if(req.method==='GET'&&url.pathname==='/api/admin/commerce/fazer/offers')return done(200,await commerce.fazer.offers(url.searchParams.get('kind'),url.searchParams.get('id')));
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/inventory')return done(200,{items:await commerce.inventory(text(url.searchParams.get('product_id')||'','el producto',100,false))});
       if(req.method==='GET'&&url.pathname==='/api/admin/commerce/customers')return done(200,{customers:await commerce.customers(url.searchParams.get('search')||'',url.searchParams.get('status')||'all'),counts:await commerce.customerCounts()});
       if(req.method!=='POST')throw fail(405,'Método no permitido.');
       const data=await input(req,1024*1024);
       switch(url.pathname){
+        case '/api/admin/commerce/fazer/products':return done(200,await commerce.fazer.products.save(data));
+        case '/api/admin/commerce/fazer/visibility':return done(200,await commerce.fazer.products.visibility(data));
+        case '/api/admin/commerce/fazer/config':return done(200,await commerce.fazer.save(data));
         case '/api/admin/commerce/yape/pair':{
           let origin;try{origin=new URL(publicOrigin);}catch{throw fail(409,'Configura APP_URL con https://arcangelpro.com antes de vincular.');}
           if(origin.protocol!=='https:'||origin.username||origin.password||origin.pathname!=='/'||origin.search||origin.hash)throw fail(409,'APP_URL debe ser el dominio HTTPS de la tienda.');
@@ -90,6 +99,8 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
     if(req.method==='GET'){
       const user=await requireUser(req);
       if(['/api/shop/session','/api/shop/me'].includes(url.pathname))setCookie(req,res,cookie(req));
+      if(url.pathname==='/api/shop/digital/orders')return done(200,{items:await commerce.fazer.orders.list(user.id)});
+      if(url.pathname==='/api/shop/digital/quote')return done(200,await commerce.fazer.orders.quote(url.searchParams.get('product_id'),user));
       if(url.pathname==='/api/shop/session')return done(200,{user,csrf:csrf(cookie(req))});
       if(url.pathname==='/api/shop/yape/current')return done(200,{claim:await commerce.yape.current(user.id),...await commerce.yape.publicStatus()});
       if(url.pathname==='/api/shop/me')return done(200,{user,csrf:csrf(cookie(req)),orders:await commerce.orders(user.id),movements:await commerce.movements(user.id),reports:await commerce.reports(user.id)});
@@ -132,6 +143,8 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
         return done(200,await payments.status(user,data.id));
       case '/api/shop/coupons/quote':await commerce.limit('coupon:'+user.id,20,60);return done(200,await commerce.couponQuote(user.id,data));
       case '/api/shop/coupons/redeem':await commerce.limit('coupon:'+user.id,20,60);return done(200,await commerce.coupons.redeem(user.id,data.code));
+      case '/api/shop/digital/validate-id':await commerce.limit('player-validation:'+user.id,15,60);return done(200,await commerce.fazer.orders.validatePlayer(user,data));
+      case '/api/shop/digital/purchase':return done(200,await commerce.fazer.orders.purchase(user,data));
       case '/api/shop/purchase':return done(200,await commerce.purchase(user.id,data));
       case '/api/shop/order':return done(200,{delivery:await commerce.orderSecret(user.id,data.order_id)});
       case '/api/shop/replace':return done(200,await commerce.replaceAccount(user.id,data));
@@ -141,3 +154,4 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
     }
   };
 }
+

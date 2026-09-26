@@ -1,4 +1,5 @@
 import {createCoupons} from './coupons.mjs';
+import {createFazerStore} from './fazer-store.mjs';
 import { randomUUID } from 'node:crypto';
 import { createMercadoStore } from './mercado-store.mjs';
 import { createYapeStore } from './yape-store.mjs';
@@ -91,7 +92,9 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
     return {...quote,order_id:order.order_id,revision:sealer.mac(JSON.stringify([order.order_id,order.status,order.delivery_secret,quote]))};
   }
   const coupons=await createCoupons({pool,transaction,cat,catalogLock,userLock});
+  const fazer=await createFazerStore({pool,cat,sealer});
   return {
+    fazer,
     coupons,
     async couponQuote(userId,input){return transaction(async db=>{
       const snapshot=await catalogLock(db),u=await userLock(db,userId);
