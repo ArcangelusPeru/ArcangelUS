@@ -1,6 +1,6 @@
-// Group regional/service variants while keeping distinct games such as Mobile Legends: Adventure.
-window.gameDisplayName=p=>String(p.brand||p.name||'').normalize('NFKC').replace(/\s*\([^)]*\)/g,'').replace(/\s+/g,' ').trim();
-window.gameGroupKey=p=>p.filter+'|'+(p.filter==='recargas-juegos'?window.gameDisplayName(p):String(p.provider_category_id||p.brand)).toLowerCase();
+// Keep provider regions and service variants separate; group only their offers.
+window.gameDisplayName=p=>String(p.brand||p.name||'').normalize('NFKC').replace(/\s+/g,' ').trim();
+window.gameGroupKey=p=>p.filter+'|'+String(p.provider_category_id||window.gameDisplayName(p)).toLowerCase();
 window.openGamePackages=(product,products)=>{
  document.querySelector('#gamePackages')?.remove();
  const dialog=document.createElement('dialog');dialog.id='gamePackages';
