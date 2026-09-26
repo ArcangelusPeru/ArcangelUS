@@ -107,6 +107,8 @@ const countEl = document.getElementById('countNum');
 let allProducts  = [];
 let activeFilter = 'all';
 let searchQuery  = '';
+const favoriteIds=()=>JSON.parse(localStorage.getItem('arcangel_favorites')||'[]');
+function toggleFavorite(id){const ids=new Set(favoriteIds());ids.has(id)?ids.delete(id):ids.add(id);localStorage.setItem('arcangel_favorites',JSON.stringify([...ids]));renderAll();}
 const DEFAULT_MAINTENANCE_MESSAGE = 'Estamos realizando mejoras en la tienda. Regresa en unos minutos.';
 
 function showMaintenance(message) {
@@ -114,6 +116,7 @@ function showMaintenance(message) {
   const messageEl = document.getElementById('maintenanceMessage');
   if (messageEl) messageEl.textContent = message || DEFAULT_MAINTENANCE_MESSAGE;
   if (screen) screen.classList.add('show');
+
   gridEl.innerHTML = '';
   countEl.textContent = '0';
 }
@@ -148,8 +151,8 @@ function showSkeletons(n) {
 
 function renderAll() {
   const q = searchQuery.toLowerCase().trim();
-  const list = allProducts.filter(p => {
-    const mf = activeFilter === 'all' || (activeFilter === 'ofertas' ? p.is_oferta : p.filter === activeFilter);
+  let list = allProducts.filter(p => {
+    const mf = activeFilter === 'all' ? p.checkout_mode !== 'provider' : activeFilter === 'favorites' ? favoriteIds().includes(String(p.id)) : (activeFilter === 'ofertas' ? p.is_oferta : p.filter === activeFilter);
     const ms = !q ||
       (p.name   || '').toLowerCase().includes(q) ||
       (p.brand  || '').toLowerCase().includes(q) ||
@@ -234,9 +237,10 @@ card.innerHTML = `
         </div>
       </div>
     `;
+    if(p.checkout_mode==='provider'){card.querySelector('.card-body').innerHTML='<button class="favorite-toggle" type="button" aria-label="Marcar favorito">'+(favoriteIds().includes(String(p.id))?'♥':'♡')+'</button><h3 class="card-title">'+escHtml(p.brand)+'</h3><p>Recargas y paquetes disponibles</p><button class="card-btn">Ver paquetes →</button>';card.querySelector('.favorite-toggle').onclick=e=>{e.stopPropagation();toggleFavorite(p.id)};card.onclick=()=>window.openGamePackages(p,allProducts);card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();window.openGamePackages(p,allProducts);}};gridEl.appendChild(card);return;}
     const purchases=document.createElement('div');purchases.className='card-purchase-options';
-    const canBuy=p.checkout_mode==='automatic'&&!p.out_of_stock; const showWhatsApp=p.whatsapp_enabled!==false;
-    const balanceLink=canBuy?`<a class="buy-with-balance" data-commerce href="/cuenta?comprar=${encodeURIComponent(p.id)}">COMPRAR ACÁ</a>`:'';
+    const canBuy=['automatic','provider'].includes(p.checkout_mode)&&!p.out_of_stock; const showWhatsApp=p.whatsapp_enabled!==false;
+    const balanceLink=canBuy?`<a class="buy-with-balance" data-commerce href="${p.checkout_mode==='provider'?'/digital.html?comprar=':'/cuenta?comprar='}${encodeURIComponent(p.id)}">COMPRAR ACÁ</a>`:'';
     const whatsappLink=showWhatsApp?`<a class="buy-whatsapp-small" target="_blank" rel="noopener noreferrer" href="https://wa.me/${WA}?text=${encodeURIComponent('Hola, quiero comprar '+p.name)}"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="currentColor"> <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/> <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.555 4.116 1.527 5.845L.057 23.982l6.304-1.633A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.89 0-3.66-.493-5.197-1.354l-.372-.22-3.742.969.998-3.638-.242-.386A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/> </svg>COMPRAR POR WHATSAPP</a>`:'';
     purchases.innerHTML=balanceLink+whatsappLink;purchases.hidden=!canBuy&&!showWhatsApp;
     purchases.addEventListener('click',e=>{e.stopPropagation();if(e.target.closest('[aria-disabled=true]'))e.preventDefault();});card.querySelector('.card-body').appendChild(purchases);
@@ -393,10 +397,10 @@ if (p.note && p.note.trim()) {
   const modalWhatsApp=document.getElementById('mWA');
   if(modalWhatsApp){modalWhatsApp.href=`https://wa.me/${WA}?text=${msg}`;modalWhatsApp.hidden=p.whatsapp_enabled===false;}
   const directBuy=document.getElementById('mBuyHere');
-  if(directBuy){const enabled=p.checkout_mode==='automatic'&&!p.out_of_stock;directBuy.hidden=!enabled;directBuy.href='/cuenta?comprar='+encodeURIComponent(p.id);directBuy.setAttribute('aria-disabled',String(!enabled));directBuy.title=enabled?'Compra con saldo y entrega automática':'Compra con saldo no disponible para este producto';directBuy.onclick=e=>{if(!enabled)e.preventDefault();};}
+  if(directBuy){const enabled=['automatic','provider'].includes(p.checkout_mode)&&!p.out_of_stock;directBuy.hidden=!enabled;directBuy.href=(p.checkout_mode==='provider'?'/digital.html?comprar=':'/cuenta?comprar=')+encodeURIComponent(p.id);directBuy.setAttribute('aria-disabled',String(!enabled));directBuy.title=enabled?'Compra con saldo y entrega automática':'Compra con saldo no disponible para este producto';directBuy.onclick=e=>{if(!enabled)e.preventDefault();};}
 
   const purchaseOptions=document.querySelector('.modal-whatsapp-sticky');
-  const hasBalance=p.checkout_mode==='automatic'&&!p.out_of_stock;
+  const hasBalance=['automatic','provider'].includes(p.checkout_mode)&&!p.out_of_stock;
   const hasWhatsApp=p.whatsapp_enabled!==false;
   purchaseOptions.hidden=!hasBalance&&!hasWhatsApp;
   purchaseOptions.classList.toggle('balance-only',hasBalance&&!hasWhatsApp);
@@ -510,6 +514,9 @@ function applyCategories(data) {
   };
   const filtersEl = document.getElementById('filters');
   filtersEl.querySelectorAll('.filter-chip:not([data-f="all"]):not([data-f="ofertas"])').forEach(el => el.remove());
+  let favChip=filtersEl.querySelector('.filter-chip[data-f="favorites"]');
+  if(!favChip){favChip=document.createElement('button');favChip.className='filter-chip';favChip.dataset.f='favorites';favChip.innerHTML='<span class="filter-chip-media">☆</span><span class="filter-chip-label">Favoritos</span>';}
+  favChip.remove();
   const ofertasChip = filtersEl.querySelector('.filter-chip[data-f="ofertas"]');
   if (!ofertasChip) {
     const chip = document.createElement('button');
@@ -524,6 +531,14 @@ function applyCategories(data) {
     const todosChip = filtersEl.querySelector('.filter-chip[data-f="all"]');
     todosChip.insertAdjacentElement('afterend', chip);
   }
+  filtersEl.querySelector('[data-games-group]')?.remove();
+  const gamesGroup = document.createElement('div');
+  gamesGroup.dataset.gamesGroup = '';
+  gamesGroup.className = 'games-category-panel';
+  const gamesTitle = document.createElement('strong');
+  gamesTitle.textContent = 'Juegos y tarjetas';
+  gamesTitle.className = 'games-category-title';
+  gamesGroup.appendChild(gamesTitle);
   (data || []).forEach(cat => {
     const btn = document.createElement('button');
     btn.className = 'filter-chip';
@@ -534,8 +549,9 @@ function applyCategories(data) {
       </span>
       <span class="filter-chip-label">${escHtml(cat.name)}</span>
     `;
-    filtersEl.appendChild(btn);
+    if (['recargas-juegos','tarjetas-regalo','claves-juegos'].includes(cat.slug)) gamesGroup.appendChild(btn); else filtersEl.appendChild(btn);
   });
+  if (gamesGroup.children.length > 1) { filtersEl.appendChild(gamesGroup); filtersEl.appendChild(favChip); }
   requestAnimationFrame(updateFiltersScrollHint);
 }
 let loadedRevision = null;
@@ -543,7 +559,7 @@ let loadedPrices = null;
 let refreshing = false;
 function applyCatalog(data) {
   shopCategories = data.categories;
-  if (activeFilter !== 'all' && activeFilter !== 'ofertas' && !data.categories.some(c => c.slug === activeFilter)) activeFilter = 'all';
+  if (activeFilter !== 'all' && activeFilter !== 'ofertas' && activeFilter !== 'favorites' && !data.categories.some(c => c.slug === activeFilter)) activeFilter = 'all';
   applyCategories(data.categories);
   document.querySelectorAll('.filter-chip').forEach(chip => chip.classList.toggle('active', chip.dataset.f === activeFilter));
   allProducts = data.products.filter(p => p.active !== false);
@@ -639,3 +655,8 @@ if (document.readyState === 'loading') {
 } else {
   loadAll();
 }
+
+
+
+
+
