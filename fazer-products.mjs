@@ -3,6 +3,15 @@ import {fail,soles} from './commerce-security.mjs';
 import {automaticPrice,latamEligible,providerDescription} from './fazer-pricing.mjs';
 export function providerImage(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password?u.href:'';}catch{return '';}}
 export function providerImageFrom(...values){for(const value of values){const image=providerImage(value);if(image)return image;}return '';}
+export function productCover(kind,...records){
+ const supplied=providerImageFrom(...records.flatMap(r=>[r?.imageurl,r?.image_url,r?.image,r?.cover_url]));
+ if(supplied)return supplied;
+ if(kind==='gamekeys')for(const record of records){
+  const id=String(record?.appid??'');
+  if(/^[1-9]\d{0,9}$/.test(id))return `https://cdn.akamai.steamstatic.com/steam/apps/${id}/header.jpg`;
+ }
+ return '';
+}
 const groups={topups:['recargas-juegos','fazer-topups.svg'],giftcards:['tarjetas-regalo','fazer-giftcards.svg'],gamekeys:['claves-juegos','fazer-gamekeys.svg']};
 export function publicationInput(input){
  if(!Object.hasOwn(groups,input.kind))throw fail(400,'Selecciona un servicio válido.');
@@ -23,7 +32,32 @@ export async function createFazerProducts({pool,cat,client,exchangeRate}){
   try{await pool.query("ALTER TABLE arcangel_fazer_products ADD COLUMN image_url TEXT NULL");}
   catch(error){if(error.code!=='ER_DUP_FIELDNAME')throw error;}
  }
- const list=async()=>{const [rows]=await pool.execute('SELECT * FROM arcangel_fazer_products WHERE catalog_id=? ORDER BY name',[cat]);return rows;};
+ // Repair old publications from paginated category metadata, without changing prices or visibility.
+ let repairRunning=null,nextRepair=0;
+ const repairCovers=async rows=>{
+  const missing=new Set(rows.filter(r=>r.kind==='gamekeys'&&!providerImage(r.image_url)).map(r=>r.category_id));
+  if(!missing.size)return;
+  const api=await client();let cursor;const seen=new Set();
+  do{
+   const page=await api.categories('gamekeys',cursor);
+   for(const item of page.items||[]){
+    const id=String(item.game_id??'');if(!missing.has(id))continue;
+    const image=productCover('gamekeys',item);if(!image)continue;
+    await pool.execute("UPDATE arcangel_fazer_products SET image_url=? WHERE catalog_id=? AND kind='gamekeys' AND category_id=? AND (image_url IS NULL OR image_url='')",[image,cat,id]);
+    missing.delete(id);
+   }
+   cursor=page.meta?.has_more?page.meta.next_cursor:null;
+   if(cursor&&seen.has(cursor))throw new Error('Repeated FazerCards catalog cursor');
+   if(cursor)seen.add(cursor);
+  }while(cursor&&missing.size);
+ };
+ const list=async()=>{const [rows]=await pool.execute('SELECT * FROM arcangel_fazer_products WHERE catalog_id=? ORDER BY name',[cat]);
+  if(!repairRunning&&Date.now()>=nextRepair){
+   nextRepair=Date.now()+3600000;
+   repairRunning=repairCovers(rows).catch(()=>{nextRepair=Date.now()+60000;console.warn('FazerCards cover refresh incomplete; retry scheduled on next catalog request.');}).finally(()=>{repairRunning=null;});
+  }
+  return rows;
+ };
  return {list,async unpublishAll(){const [result]=await pool.execute('UPDATE arcangel_fazer_products SET published=FALSE WHERE catalog_id=? AND published=TRUE',[cat]);return {unpublished:result.affectedRows};},public:async role=>(await list()).filter(r=>r.published).map(r=>publicFazerProduct(r,role)),
  async save(raw){const rate=Number(await exchangeRate());const input=publicationInput({...raw,client_price:1,reseller_price:1}),api=await client(),data=await api.offers(input.kind,input.category_id);
  const offers=Array.isArray(data)?data:(data.offers||data.keys||data.cards||data.items||data.products||[]);
@@ -34,10 +68,10 @@ export async function createFazerProducts({pool,cat,client,exchangeRate}){
  const [previous]=await pool.execute('SELECT description FROM arcangel_fazer_products WHERE catalog_id=? AND product_id=?',[cat,id]);
  const description=input.description!==undefined?input.description:(previous[0]?.description??String(data.note||'').slice(0,12000));
  const categoryName=String(data.name||data.GameName||raw.category_name||'Producto digital').slice(0,300),name=String(offer.name||categoryName).slice(0,300);
- await pool.execute('INSERT INTO arcangel_fazer_products(catalog_id,product_id,kind,category_id,offer_id,name,category_name,description,client_cents,reseller_cents,cost_usd,published) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),category_name=VALUES(category_name),description=VALUES(description),client_cents=VALUES(client_cents),reseller_cents=VALUES(reseller_cents),cost_usd=VALUES(cost_usd),published=VALUES(published)',[cat,id,input.kind,input.category_id,input.offer_id,name,categoryName,description,input.client_cents,input.reseller_cents,cost,input.published]);await pool.execute('UPDATE arcangel_fazer_products SET image_url=? WHERE catalog_id=? AND product_id=?',[providerImageFrom(data.imageurl,data.image_url,data.image,data.cover_url),cat,id]);return {product_id:id,published:input.published};
+ await pool.execute('INSERT INTO arcangel_fazer_products(catalog_id,product_id,kind,category_id,offer_id,name,category_name,description,client_cents,reseller_cents,cost_usd,published) VALUES(?,?,?,?,?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE name=VALUES(name),category_name=VALUES(category_name),description=VALUES(description),client_cents=VALUES(client_cents),reseller_cents=VALUES(reseller_cents),cost_usd=VALUES(cost_usd),published=VALUES(published)',[cat,id,input.kind,input.category_id,input.offer_id,name,categoryName,description,input.client_cents,input.reseller_cents,cost,input.published]);await pool.execute('UPDATE arcangel_fazer_products SET image_url=? WHERE catalog_id=? AND product_id=?',[productCover(input.kind,offer,data),cat,id]);return {product_id:id,published:input.published};
  },async autoPublish({kind,latamOnly=false}){
   const rate=Number(await exchangeRate());if(!(rate>0))throw fail(409,'Guarda primero el tipo de cambio.');
-  let cursor,changed=0;do{const page=await (await client()).categories(kind,cursor);for(const category of page.items||[]){const cid=String(category.category_id??category.game_id??category.id??category.product_id??category.slug),offers=await (await client()).offers(kind,cid);for(const offer of Array.isArray(offers)?offers:(offers.offers||offers.cards||offers.keys||offers.items||offers.products||[])){const region=offer.region||offer.region_name||offer.country||category.region||category.region_name||category.country||category.name||category.GameName||'';if(latamOnly&&!latamEligible(region))continue;const cost=Number(offer.price_usd);if(!(cost>0))continue;const offerId=String(offer.offer_id??offer.card_id??offer.key_id??offer.id??offer.product_id??offer.sku??'');if(!offerId)continue;const id=publicationId({kind,category_id:cid,offer_id:offerId}),price=automaticPrice(cost,rate),description=providerDescription(category,offers);await pool.execute('INSERT INTO arcangel_fazer_products(catalog_id,product_id,kind,category_id,offer_id,name,category_name,description,client_cents,reseller_cents,cost_usd,published) VALUES(?,?,?,?,?,?,?,?,?,?,?,TRUE) ON DUPLICATE KEY UPDATE description=VALUES(description),client_cents=VALUES(client_cents),reseller_cents=VALUES(reseller_cents),cost_usd=VALUES(cost_usd),published=TRUE',[cat,id,kind,cid,offerId,String(offer.name||offer.title||offer.product_name||category.name||category.GameName||category.title),String(category.name||category.GameName||category.title||category.product_name||'Producto'),description,Math.round(price*100),Math.round(price*100),cost]);const image=providerImageFrom(offer.imageurl,offer.image_url,offer.image,offer.cover_url,offers.imageurl,offers.image_url,offers.image,category.imageurl,category.image_url,category.image,category.cover_url);if(image)await pool.execute('UPDATE arcangel_fazer_products SET image_url=? WHERE catalog_id=? AND product_id=?',[image,cat,id]);changed++;}}cursor=page.meta?.has_more?page.meta.next_cursor:null;}while(cursor);return {published:changed}; },async visibility(input){if(typeof input.published!=='boolean')throw fail(400,'Estado no válido.');const [result]=await pool.execute('UPDATE arcangel_fazer_products SET published=? WHERE catalog_id=? AND product_id=?',[input.published,cat,String(input.product_id||'')]);if(!result.affectedRows)throw fail(404,'Producto no encontrado.');return {published:input.published};}};
+  let cursor,changed=0;do{const page=await (await client()).categories(kind,cursor);for(const category of page.items||[]){const cid=String(category.category_id??category.game_id??category.id??category.product_id??category.slug),offers=await (await client()).offers(kind,cid);for(const offer of Array.isArray(offers)?offers:(offers.offers||offers.cards||offers.keys||offers.items||offers.products||[])){const region=offer.region||offer.region_name||offer.country||category.region||category.region_name||category.country||category.name||category.GameName||'';if(latamOnly&&!latamEligible(region))continue;const cost=Number(offer.price_usd);if(!(cost>0))continue;const offerId=String(offer.offer_id??offer.card_id??offer.key_id??offer.id??offer.product_id??offer.sku??'');if(!offerId)continue;const id=publicationId({kind,category_id:cid,offer_id:offerId}),price=automaticPrice(cost,rate),description=providerDescription(category,offers);await pool.execute('INSERT INTO arcangel_fazer_products(catalog_id,product_id,kind,category_id,offer_id,name,category_name,description,client_cents,reseller_cents,cost_usd,published) VALUES(?,?,?,?,?,?,?,?,?,?,?,TRUE) ON DUPLICATE KEY UPDATE description=VALUES(description),client_cents=VALUES(client_cents),reseller_cents=VALUES(reseller_cents),cost_usd=VALUES(cost_usd),published=TRUE',[cat,id,kind,cid,offerId,String(offer.name||offer.title||offer.product_name||category.name||category.GameName||category.title),String(category.name||category.GameName||category.title||category.product_name||'Producto'),description,Math.round(price*100),Math.round(price*100),cost]);const image=productCover(kind,offer,offers,category);if(image)await pool.execute('UPDATE arcangel_fazer_products SET image_url=? WHERE catalog_id=? AND product_id=?',[image,cat,id]);changed++;}}cursor=page.meta?.has_more?page.meta.next_cursor:null;}while(cursor);return {published:changed}; },async visibility(input){if(typeof input.published!=='boolean')throw fail(400,'Estado no válido.');const [result]=await pool.execute('UPDATE arcangel_fazer_products SET published=? WHERE catalog_id=? AND product_id=?',[input.published,cat,String(input.product_id||'')]);if(!result.affectedRows)throw fail(404,'Producto no encontrado.');return {published:input.published};}};
 }
 
 
