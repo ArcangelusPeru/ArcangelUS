@@ -23,7 +23,7 @@ export async function createFazerProducts({pool,cat,client,exchangeRate}){
   catch(error){if(error.code!=='ER_DUP_FIELDNAME')throw error;}
  }
  const list=async()=>{const [rows]=await pool.execute('SELECT * FROM arcangel_fazer_products WHERE catalog_id=? ORDER BY name',[cat]);return rows;};
- return {list,public:async role=>(await list()).filter(r=>r.published).map(r=>publicFazerProduct(r,role)),
+ return {list,async unpublishAll(){const [result]=await pool.execute('UPDATE arcangel_fazer_products SET published=FALSE WHERE catalog_id=? AND published=TRUE',[cat]);return {unpublished:result.affectedRows};},public:async role=>(await list()).filter(r=>r.published).map(r=>publicFazerProduct(r,role)),
  async save(raw){const rate=Number(await exchangeRate());const input=publicationInput({...raw,client_price:1,reseller_price:1}),api=await client(),data=await api.offers(input.kind,input.category_id);
  const offers=data.offers||data.keys||data.cards||[];
  const offer=offers.find(o=>String(o.offer_id??o.card_id??o.key_id)===input.offer_id);
