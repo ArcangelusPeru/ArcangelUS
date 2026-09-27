@@ -9,7 +9,8 @@ export function automaticPrice(cost, rate, markup=0){
 // Use explicit provider regions; names alone cannot establish activation rights.
 export function latamEligible(region){
  const value=String(region||'').trim().toUpperCase();
- return ['LATAM','LATIN AMERICA','LATIN AMERICA AND CARIBBEAN','GLOBAL','WORLDWIDE'].includes(value);
+ if(!value)return false;
+ return value==='GLOBAL'||value==='WORLDWIDE'||value==='LATAM'||value.startsWith('LATAM ')||value.startsWith('LATAM-')||value.includes('LATIN AMERICA');
 }
 
 export function providerDescription(category,details){
