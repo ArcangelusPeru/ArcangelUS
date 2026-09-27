@@ -6,11 +6,12 @@ export function automaticPrice(cost, rate, markup=0){
  return Math.ceil((usd*fx*(1+percent/100)-Number.EPSILON)*100)/100;
 }
 
-// Use explicit provider regions; names alone cannot establish activation rights.
+// Accept provider region fields and explicit region labels in category titles.
 export function latamEligible(region){
  const value=String(region||'').trim().toUpperCase();
  if(!value)return false;
- return value==='GLOBAL'||value==='WORLDWIDE'||value==='LATAM'||value.startsWith('LATAM ')||value.startsWith('LATAM-')||value.includes('LATIN AMERICA');
+ return /^(?:LATAM|LATIN AMERICA(?: AND CARIBBEAN)?|GLOBAL|WORLDWIDE)$/.test(value)||
+   /[([]\s*(?:LATAM|LATIN AMERICA|GLOBAL|WORLDWIDE)\s*[)\]]/.test(value);
 }
 
 export function providerDescription(category,details){
