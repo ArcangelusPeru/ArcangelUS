@@ -15,6 +15,17 @@ export function deliveryCodes(order){
  }
  return [...new Set(values)].map(x=>x.slice(0,4000)).slice(0,100);
 }
+
+export function validationTarget(product,fields,supported){
+ if(product.kind!=='topups'||!Array.isArray(supported?.items))return null;
+ const name=String(product.category_name||'').trim().toLowerCase();
+ const aliases={'free fire (latam)':'free_fire'};
+ const matches=supported.items.filter(g=>g&&g.category_id&&(String(g.category_id)===String(product.category_id)||String(g.category_id)===aliases[name]||String(g.name||'').trim().toLowerCase()===name));
+ if(matches.length!==1)return null;
+ const target=matches[0],keys=new Set(fields.map(f=>f.key));
+ if(!Array.isArray(target.fields)||!target.fields.length||!target.fields.every(f=>f&&typeof f.key==='string'&&keys.has(f.key)))return null;
+ return target;
+}
 export async function createFazerOrders({pool,cat,sealer,client,exchangeRate}){
  await pool.query(`CREATE TABLE IF NOT EXISTS arcangel_fazer_orders(catalog_id VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,order_id CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,user_id CHAR(36) NOT NULL,product_id VARCHAR(40) NOT NULL,product_name VARCHAR(600) NOT NULL,kind VARCHAR(20) NOT NULL,amount_cents BIGINT NOT NULL,fingerprint CHAR(64) NOT NULL,request_secret MEDIUMTEXT NOT NULL,delivery_secret MEDIUMTEXT NULL,provider_id VARCHAR(80) NULL,status VARCHAR(24) NOT NULL,attempts INT NOT NULL DEFAULT 0,lease_until DATETIME NULL,next_check DATETIME NULL,created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(catalog_id,order_id),KEY due_orders(catalog_id,status,next_check)) ENGINE=InnoDB`);
  const tx=async fn=>{const db=await pool.getConnection();try{await db.beginTransaction();const result=await fn(db);await db.commit();return result;}catch(e){await db.rollback();throw e;}finally{db.release();}};
@@ -45,8 +56,8 @@ export async function createFazerOrders({pool,cat,sealer,client,exchangeRate}){
   });
  }
  return {
-  async validatePlayer(user,input){const q=await quote(input.product_id,user);if(q.p.kind!=='topups')throw fail(400,'Este producto no requiere ID.');const api=await client(),supported=await api.validationGames();const name=q.p.category_name.trim().toLowerCase();const aliases={'free fire (latam)':'free_fire'};const target=(supported.items||[]).find(g=>String(g.category_id)===q.p.category_id||String(g.category_id)===aliases[name]||String(g.name).trim().toLowerCase()===name);if(!target)throw fail(409,'FazerCards no ofrece verificación de ID para este juego.');const result=await api.validatePlayer(target.category_id,buyerFields(schemaFields(target.fields),input.fields));return {valid:result.valid===true,player_name:String(result.player_name||''),region:String(result.region||'')};},
-  async quote(id,user){const q=await quote(id,user);let verification_supported=false;if(q.p.kind==='topups'){try{const api=await client(),supported=await api.validationGames(),name=q.p.category_name.trim().toLowerCase(),aliases={'free fire (latam)':'free_fire'};verification_supported=(supported.items||[]).some(g=>String(g.category_id)===q.p.category_id||String(g.category_id)===aliases[name]||String(g.name).trim().toLowerCase()===name);}catch{}}return {verification_supported,image_url:q.image_url,product_id:q.p.product_id,name:q.p.category_name+' · '+q.p.name,amount_cents:q.amount_cents,fields:q.fields,note:q.note,region:q.region,platform:q.platform};},
+  async validatePlayer(user,input){const q=await quote(input.product_id,user);if(q.p.kind!=='topups')throw fail(400,'Este producto no requiere ID.');const api=await client(),target=validationTarget(q.p,q.fields,await api.validationGames());if(!target)throw fail(409,'La verificación no está disponible para este juego.');const result=await api.validatePlayer(target.category_id,buyerFields(schemaFields(target.fields),input.fields));if(typeof result.valid!=='boolean')throw fail(502,'Error Temporal. Inténtalo más tarde.');return {valid:result.valid,player_name:String(result.player_name||''),region:String(result.region||'')};},
+  async quote(id,user){const q=await quote(id,user);let verification_supported=false;if(q.p.kind==='topups'){try{verification_supported=!!validationTarget(q.p,q.fields,await (await client()).validationGames());}catch{}}return {verification_supported,image_url:q.image_url,product_id:q.p.product_id,name:q.p.category_name+' · '+q.p.name,amount_cents:q.amount_cents,fields:q.fields,note:q.note,region:q.region,platform:q.platform};},
   async purchase(user,input){
    const id=requestId(input.request_id);const normalized=Object.fromEntries(Object.entries(input.fields||{}).sort(([a],[b])=>a.localeCompare(b)));const fingerprint=createHash('sha256').update(JSON.stringify([input.product_id,input.expected_cents,normalized])).digest('hex');
    const old=await find(id,user.id);if(old){if(old.fingerprint!==fingerprint)throw fail(409,'Esta compra ya tiene otros datos.');return {order:view(old)};}
