@@ -1334,3 +1334,29 @@ if (document.readyState === 'loading') {
 </button>
 </div>
 </html>
+
+<!-- Mobile navigation release 2026-09-28 -->
+<style>
+.mobile-menu-toggle,.mobile-menu-close,.mobile-menu-backdrop{display:none}
+.mobile-menu-backdrop[hidden]{display:none!important}
+@media(max-width:700px){
+body .catalog-sidebar{position:fixed!important;z-index:1000!important;left:8px!important;top:8px!important;bottom:8px!important;width:min(290px,calc(100vw - 24px))!important;height:calc(100dvh - 16px)!important;max-height:none!important;margin:0!important;padding:12px!important;transform:translateX(calc(-100% - 20px));visibility:hidden;transition:transform .25s ease;box-sizing:border-box}
+body.mobile-nav-open .catalog-sidebar{transform:none;visibility:visible}body.mobile-nav-open{overflow:hidden}
+body .catalog-sidebar .sidebar-brand{height:76px!important;min-height:76px!important;justify-content:flex-start!important;align-items:flex-start!important}body .sidebar-brand img{width:76px!important;height:70px!important}
+body .catalog-sidebar .filters-section{flex:1!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain}
+body .catalog-sidebar .filters-scroll,body .catalog-sidebar .games-category-panel{display:flex!important;flex-direction:column!important;gap:8px!important;height:auto!important;overflow:visible!important;padding:6px 0!important}
+body .catalog-sidebar .filter-chip{width:100%!important;flex:0 0 auto!important;min-height:44px!important;height:auto!important;padding:10px!important;justify-content:flex-start!important;box-sizing:border-box}body .catalog-sidebar .filter-chip-label{font-size:13px!important;white-space:normal!important;text-align:left!important}
+body .catalog-sidebar .games-category-title{flex:0 0 auto!important;padding:8px!important}body .sidebar-help{display:none!important}
+body .header,body .hero,body .controls-wrap,body main.wrap,body .footer{margin-left:0!important;width:100%!important}
+body .header .header-inner{min-height:60px!important;gap:8px!important;flex-wrap:wrap!important}body .header .logo{display:none!important}body .header .header-right{flex:1!important;margin-left:auto!important;width:auto!important;gap:6px!important}
+body .header .customer-store-nav{flex-wrap:wrap!important}body .customer-account-link{font-size:11px!important;padding:7px!important}
+.mobile-menu-toggle{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:#111322;color:white;border:1px solid #713044;border-radius:10px;font-size:24px;cursor:pointer}
+.mobile-menu-close{display:block;position:absolute;right:12px;top:22px;min-height:44px;padding:0 12px;background:#211321;color:white;border:1px solid #713044;border-radius:9px;font-size:14px;cursor:pointer}
+.mobile-menu-backdrop{display:block;position:fixed;inset:0;z-index:999;background:#0008}
+body .hero{padding:18px 10px!important}body .hero .logo-scene{width:145px!important}body .hero .brand-name{font-size:25px!important}body .hero .hero-sub{font-size:13px!important}
+}
+@media(prefers-reduced-motion:reduce){body .catalog-sidebar{transition:none!important}}
+</style>
+<script>
+(function(){function init(){const header=document.querySelector(".header .header-inner"),sidebar=document.querySelector(".catalog-sidebar");if(!header||!sidebar||document.querySelector(".mobile-menu-toggle"))return;const media=matchMedia("(max-width:700px)");const btn=document.createElement("button");btn.type="button";btn.className="mobile-menu-toggle";btn.textContent="☰";btn.setAttribute("aria-label","Abrir menú");btn.setAttribute("aria-expanded","false");sidebar.id=sidebar.id||"mobile-categories";btn.setAttribute("aria-controls",sidebar.id);header.prepend(btn);const end=document.createElement("button");end.type="button";end.className="mobile-menu-close";end.textContent="× Cerrar";sidebar.prepend(end);const shade=document.createElement("div");shade.className="mobile-menu-backdrop";shade.hidden=true;document.body.append(shade);function set(open){document.body.classList.toggle("mobile-nav-open",open);shade.hidden=!open;btn.setAttribute("aria-expanded",String(open));sidebar.inert=media.matches&&!open;if(open)end.focus();else btn.focus()}btn.onclick=()=>set(true);end.onclick=()=>set(false);shade.onclick=()=>set(false);sidebar.addEventListener("click",e=>{if(media.matches&&e.target.closest(".filter-chip"))set(false)});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("mobile-nav-open"))set(false)});media.addEventListener("change",()=>{document.body.classList.remove("mobile-nav-open");shade.hidden=true;btn.setAttribute("aria-expanded","false");sidebar.inert=media.matches});sidebar.inert=media.matches}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init()})();
+</script>
