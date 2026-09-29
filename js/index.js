@@ -546,10 +546,17 @@ function applyCategories(data) {
   const gamesGroup = document.createElement('div');
   gamesGroup.dataset.gamesGroup = '';
   gamesGroup.className = 'games-category-panel';
-  const gamesTitle = document.createElement('strong');
+  const gamesTitle = document.createElement('button');
+  gamesTitle.type = 'button';
   gamesTitle.textContent = 'Juegos y tarjetas';
   gamesTitle.className = 'games-category-title';
+  gamesTitle.setAttribute('aria-expanded', localStorage.getItem('arcangel-games-panel-open') === '1' ? 'true' : 'false');
+  gamesTitle.setAttribute('aria-controls', 'games-category-options');
+  gamesTitle.title = 'Mostrar u ocultar categorías de juegos';
   gamesGroup.appendChild(gamesTitle);
+  const gamesOptions = document.createElement('div'); gamesOptions.id='games-category-options'; gamesOptions.className='games-category-options';
+  if(localStorage.getItem('arcangel-games-panel-open') !== '1') gamesGroup.classList.add('games-panel-collapsed');
+  gamesTitle.onclick=()=>{const open=!gamesGroup.classList.toggle('games-panel-collapsed');gamesTitle.setAttribute('aria-expanded',String(open));localStorage.setItem('arcangel-games-panel-open',open?'1':'0');requestAnimationFrame(updateFiltersScrollHint);};
   (data || []).forEach(cat => {
     const btn = document.createElement('button');
     btn.className = 'filter-chip';
@@ -560,9 +567,10 @@ function applyCategories(data) {
       </span>
       <span class="filter-chip-label">${escHtml(cat.name)}</span>
     `;
-    if (['recargas-juegos','tarjetas-regalo','claves-juegos'].includes(cat.slug)) gamesGroup.appendChild(btn); else filtersEl.appendChild(btn);
+    if (['recargas-juegos','tarjetas-regalo','claves-juegos'].includes(cat.slug)) gamesOptions.appendChild(btn); else filtersEl.appendChild(btn);
   });
-  if (gamesGroup.children.length > 1) { filtersEl.appendChild(gamesGroup); filtersEl.appendChild(favChip); }
+  gamesGroup.appendChild(gamesOptions);
+  if (gamesOptions.children.length) { filtersEl.appendChild(gamesGroup); filtersEl.appendChild(favChip); }
   requestAnimationFrame(updateFiltersScrollHint);
 }
 let loadedRevision = null;

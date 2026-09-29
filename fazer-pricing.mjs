@@ -15,8 +15,13 @@ export function latamEligible(region){
 }
 
 export function providerDescription(category,details){
- return [details.description||details.note||category.description||category.note||'',
- category.platform?`Plataforma: ${category.platform}`:'',
- (details.region||category.region)?`Región: ${details.region||category.region}`:'']
- .filter(Boolean).join('\n').slice(0,12000);
+ const raw=details.description||details.note||category.description||category.note||'';
+ const source=String(raw).replace(/\r/g,'').trim();
+ const platform=category.platform||details.platform;
+ const region=details.region||category.region;
+ const kind=String(category.kind||'').toLowerCase();const specific=kind==='topups'?['1. Revisa que el juego y la región sean correctos.','2. Escribe tu ID de jugador exactamente como aparece dentro del juego.','3. Confirma la compra y revisa el resultado en «Mis compras digitales».']:kind==='giftcards'?['1. Comprueba que la tarjeta corresponde a tu país o región.','2. Confirma la compra y revisa el código en «Mis compras digitales».','3. Canjea el código siguiendo las instrucciones de la plataforma.']:['1. Comprueba que el juego, la plataforma y la región sean correctos.','2. Confirma la compra y revisa la clave en «Mis compras digitales».','3. Activa la clave únicamente en la plataforma indicada.'];const lines=['INSTRUCCIONES',...specific];
+ if(platform)lines.push(`Plataforma: ${platform}`);
+ if(region)lines.push(`Región: ${region}`);
+ // No mostramos el texto original del proveedor: puede venir en inglés.
+ return lines.join('\n').slice(0,12000);
 }

@@ -67,3 +67,5 @@ body .hero .proof-claim,body .hero .proof-copy{font-size:15px}
  body{min-height:calc(100dvh / 1.1)}
  #gamePackages{width:min(760px,calc(100vw / 1.1 - 32px));max-height:calc(100dvh / 1.1 - 40px)}
 }
+
+#gamePackages .package-media{display:grid;grid-template-columns:minmax(220px,1fr) minmax(220px,1fr);gap:20px;align-items:center;margin-bottom:22px}#gamePackages .package-media .package-cover{margin:0;height:205px}#gamePackages .package-description{padding:20px;border:1px solid #50313e;border-radius:14px;background:linear-gradient(145deg,#211522,#100e18);min-height:130px}#gamePackages .package-description h3{margin:0 0 10px;font-size:16px;color:#ff8090}#gamePackages .package-description p{margin:0;color:#d5c9d1;line-height:1.65;white-space:pre-wrap}@media(max-width:600px){#gamePackages .package-media{grid-template-columns:1fr;gap:12px}#gamePackages .package-media .package-cover{height:155px}.package-description{min-height:0!important}}

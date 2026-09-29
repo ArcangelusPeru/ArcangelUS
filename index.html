@@ -982,7 +982,7 @@ a{color:inherit;text-decoration:none}
 <body data-v="fix-logo-20260530">
 <aside class="catalog-sidebar" aria-label="Categorías del catálogo">
   <div class="sidebar-brand"><img src="logo/arcangel-us.png" alt="Arcangel US"><strong>Arcangel<br><span>US</span></strong></div>
-  <div class="sidebar-help"><img src="logo/arcangel-us.png" alt=""><div><b>¿Necesitas ayuda?</b><small>Contáctanos por:</small><a href="https://wa.me/51929688960?text=Necesito%20tu%20ayuda%20vengo%20departe%20de%20tu%20pagina" target="_blank" rel="noopener">◉ WhatsApp&nbsp; ›</a></div></div>
+  <div class="sidebar-help"><img src="logo/arcangel-us.png" alt=""><div><b>¿Necesitas ayuda?</b><small>Contáctanos por:</small><a href="https://wa.me/51929688960" target="_blank" rel="noopener">◉ WhatsApp&nbsp; ›</a></div></div>
 </aside>
 <style>
 body{overflow-x:hidden}
@@ -1252,7 +1252,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opa
 <script src="js/shop-settings.js?v=1.11.0"></script>
 <script src="js/waves.js?v=1.11.0"></script>
 <script src="js/commerce.js?v=1.11.0"></script>
-<script src="js/game-packages.js?v=6"></script><script src="js/index.js?v=1.14.2"></script>
+<script src="js/game-packages.js?v=20260929-region2"></script><script src="js/index.js?v=1.14.2"></script>
 
 <script>
 // ── LOGO PARTICLES ──
@@ -1335,48 +1335,4 @@ if (document.readyState === 'loading') {
 </div>
 </html>
 
-<!-- Mobile navigation release 2026-09-28 -->
-<style>
-.mobile-menu-toggle,.mobile-menu-close,.mobile-menu-backdrop{display:none}
-.mobile-menu-backdrop[hidden]{display:none!important}
-@media(max-width:700px){
-body .catalog-sidebar{position:fixed!important;z-index:1000!important;left:8px!important;top:8px!important;bottom:8px!important;width:min(290px,calc(100vw - 24px))!important;height:calc(100dvh - 16px)!important;max-height:none!important;margin:0!important;padding:12px!important;transform:translateX(calc(-100% - 20px));visibility:hidden;transition:transform .25s ease;box-sizing:border-box}
-body.mobile-nav-open .catalog-sidebar{transform:none;visibility:visible}body.mobile-nav-open{overflow:hidden}
-body .catalog-sidebar .sidebar-brand{height:76px!important;min-height:76px!important;justify-content:flex-start!important;align-items:flex-start!important}body .sidebar-brand img{width:76px!important;height:70px!important}
-body .catalog-sidebar .filters-section{flex:1!important;min-height:0!important;max-height:none!important;overflow-y:auto!important;overflow-x:hidden!important;overscroll-behavior:contain}
-body .catalog-sidebar .filters-scroll,body .catalog-sidebar .games-category-panel{display:flex!important;flex-direction:column!important;gap:8px!important;height:auto!important;overflow:visible!important;padding:6px 0!important}
-body .catalog-sidebar .filter-chip{width:100%!important;flex:0 0 auto!important;min-height:44px!important;height:auto!important;padding:10px!important;justify-content:flex-start!important;box-sizing:border-box}body .catalog-sidebar .filter-chip-label{font-size:13px!important;white-space:normal!important;text-align:left!important}
-body .catalog-sidebar .games-category-title{flex:0 0 auto!important;padding:8px!important}body .sidebar-help{display:none!important}
-body .header,body .hero,body .controls-wrap,body main.wrap,body .footer{margin-left:0!important;width:100%!important}
-body .header .header-inner{min-height:60px!important;gap:8px!important;flex-wrap:wrap!important}body .header .logo{display:none!important}body .header .header-right{flex:1!important;margin-left:auto!important;width:auto!important;gap:6px!important}
-body .header .customer-store-nav{flex-wrap:wrap!important}body .customer-account-link{font-size:11px!important;padding:7px!important}
-.mobile-menu-toggle{display:flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;background:#111322;color:white;border:1px solid #713044;border-radius:10px;font-size:24px;cursor:pointer}
-.mobile-menu-close{display:block;position:absolute;right:12px;top:22px;min-height:44px;padding:0 12px;background:#211321;color:white;border:1px solid #713044;border-radius:9px;font-size:14px;cursor:pointer}
-.mobile-menu-backdrop{display:block;position:fixed;inset:0;z-index:999;background:#0008}
-body .hero{padding:18px 10px!important}body .hero .logo-scene{width:145px!important}body .hero .brand-name{font-size:25px!important}body .hero .hero-sub{font-size:13px!important}
-}
-@media(prefers-reduced-motion:reduce){body .catalog-sidebar{transition:none!important}}
-</style>
-<script>
-(function(){function init(){const header=document.querySelector(".header .header-inner"),sidebar=document.querySelector(".catalog-sidebar");if(!header||!sidebar||document.querySelector(".mobile-menu-toggle"))return;const media=matchMedia("(max-width:700px)");const btn=document.createElement("button");btn.type="button";btn.className="mobile-menu-toggle";btn.textContent="☰";btn.setAttribute("aria-label","Abrir menú");btn.setAttribute("aria-expanded","false");sidebar.id=sidebar.id||"mobile-categories";btn.setAttribute("aria-controls",sidebar.id);header.prepend(btn);const end=document.createElement("button");end.type="button";end.className="mobile-menu-close";end.textContent="× Cerrar";sidebar.prepend(end);const shade=document.createElement("div");shade.className="mobile-menu-backdrop";shade.hidden=true;document.body.append(shade);function set(open){document.body.classList.toggle("mobile-nav-open",open);shade.hidden=!open;btn.setAttribute("aria-expanded",String(open));sidebar.inert=media.matches&&!open;if(open)end.focus();else btn.focus()}btn.onclick=()=>set(true);end.onclick=()=>set(false);shade.onclick=()=>set(false);sidebar.addEventListener("click",e=>{if(media.matches&&e.target.closest(".filter-chip"))set(false)});document.addEventListener("keydown",e=>{if(e.key==="Escape"&&document.body.classList.contains("mobile-nav-open"))set(false)});media.addEventListener("change",()=>{document.body.classList.remove("mobile-nav-open");shade.hidden=true;btn.setAttribute("aria-expanded","false");sidebar.inert=media.matches});sidebar.inert=media.matches}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init()})();
-</script>
-
-<style id="mobile-header-polish">
-@media (max-width:700px){
-  body .header .header-inner{min-height:58px!important;height:auto!important;display:grid!important;grid-template-columns:44px minmax(0,1fr)!important;align-items:center!important;gap:8px!important;padding:6px 10px!important}
-  body .mobile-menu-toggle{grid-column:1!important;grid-row:1!important;width:44px!important;height:44px!important}
-  body .header .header-right{grid-column:2!important;grid-row:1!important;display:flex!important;align-items:center!important;justify-content:flex-end!important;flex-wrap:nowrap!important;gap:5px!important;min-width:0!important;width:auto!important;margin:0!important}
-  body .header .customer-store-nav{display:flex!important;flex:0 1 auto!important;flex-wrap:nowrap!important;gap:4px!important;min-width:0!important}
-  body .header .customer-account-link{font-size:10px!important;line-height:1!important;min-height:34px!important;padding:5px 7px!important;white-space:nowrap!important}
-  body .header .btn-icon{width:34px!important;height:34px!important;min-width:34px!important;padding:0!important}
-  body .header .live-mode-toggle{min-height:34px!important;height:34px!important;padding:5px 8px!important;gap:4px!important;font-size:10px!important;white-space:nowrap!important}
-  body .header .live-mode-toggle svg{width:14px!important;height:14px!important}
-}
-@media (max-width:370px){body .header .customer-account-link{font-size:9px!important;padding-inline:5px!important}body .header .live-mode-toggle span:not(.live-mode-dot){display:none!important}body .header .live-mode-toggle{width:38px!important;padding:0!important;justify-content:center!important}}
-</style>
-
-<style>
-/* Dock the navigation to the viewport instead of a floating card. */
-body .catalog-sidebar{left:0!important;top:0!important;bottom:0!important;margin:0!important;border-radius:0!important;border-width:0 1px 0 0!important;box-shadow:none!important}
-@media(max-width:700px){body .catalog-sidebar{height:100dvh!important;max-height:100dvh!important}}
-</style>
+<style>.games-category-title{cursor:pointer;background:transparent;border:0;width:100%;text-align:left;font:inherit}.games-category-title[aria-expanded="false"]:after{content:"⌄";transform:rotate(-90deg)}.games-category-panel.games-panel-collapsed .games-category-options{display:none!important}.games-category-options{display:contents}</style>

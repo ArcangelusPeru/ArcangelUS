@@ -30,6 +30,8 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
   const [accountNumberColumn]=await pool.query("SHOW COLUMNS FROM arcangel_inventory LIKE 'account_number'");
   if(!accountNumberColumn.length){try{await pool.query('ALTER TABLE arcangel_inventory ADD COLUMN account_number BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, ADD UNIQUE KEY inventory_number_unique(account_number)');}catch(error){if(error.code!=='ER_DUP_FIELDNAME')throw error;}}
   // Additive migration for stores already using customer accounts.
+  const [avatarColumn]=await pool.query("SHOW COLUMNS FROM arcangel_users LIKE 'avatar_data'");
+  if(!avatarColumn.length){try{await pool.query('ALTER TABLE arcangel_users ADD COLUMN avatar_data MEDIUMTEXT NULL');}catch(error){if(error.code!=='ER_DUP_FIELDNAME')throw error;}}
   const [deletedColumn]=await pool.query("SHOW COLUMNS FROM arcangel_users LIKE 'deleted_at'");
   if(!deletedColumn.length){try{await pool.query('ALTER TABLE arcangel_users ADD COLUMN deleted_at DATETIME NULL DEFAULT NULL');}catch(error){if(error.code!=='ER_DUP_FIELDNAME')throw error;}}
   const [recoveryColumn]=await pool.query("SHOW COLUMNS FROM arcangel_users LIKE 'recovery_secret'");
@@ -71,7 +73,7 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
   const query=async(db,sql,values=[])=>{const [rows]=await db.execute(sql,[cat,...values]);return rows;};
   async function catalogLock(db){const rows=await query(db,'SELECT revision,document FROM arcangel_catalogs WHERE catalog_id=? FOR UPDATE');if(!rows.length)throw fail(409,'Configura primero el catálogo.');return {row:rows[0],data:JSON.parse(rows[0].document)};}
   const userLock=async(db,id)=>{const rows=await query(db,'SELECT * FROM arcangel_users WHERE catalog_id=? AND user_id=? FOR UPDATE',[id]);if(!rows.length)throw fail(401,'Inicia sesión de nuevo.');return rows[0];};
-  const profile=user=>({id:user.user_id,username:user.username||'',email:user.email,balance_cents:Number(user.balance_cents),blocked:!!user.blocked,role:user.role==='reseller'?'reseller':'customer'});
+  const profile=user=>({id:user.user_id,avatar_url:user.avatar_data||'',username:user.username||'',email:user.email,balance_cents:Number(user.balance_cents),blocked:!!user.blocked,role:user.role==='reseller'?'reseller':'customer'});
   const duplicate=error=>{if(error.code==='ER_DUP_ENTRY')throw fail(409,'Este registro ya existe. No se guardó un duplicado.');throw error;};
   const session=async(db,user)=>{const token=secretToken();await query(db,'DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND (expires_at<NOW() OR user_id=?)',[user.user_id]);await query(db,'INSERT INTO arcangel_user_sessions(catalog_id,token_hash,user_id,expires_at) VALUES(?,?,?,DATE_ADD(NOW(),INTERVAL 7 DAY))',[digest(token),user.user_id]);return {token,user:profile(user)};};
   const userByToken=async token=>{if(!/^[a-f0-9]{64}$/.test(token||''))return null;const [user]=await query(pool,'SELECT u.* FROM arcangel_users u JOIN arcangel_user_sessions s ON s.catalog_id=u.catalog_id AND s.user_id=u.user_id WHERE u.catalog_id=? AND s.token_hash=? AND s.expires_at>NOW() AND u.blocked=FALSE AND u.deleted_at IS NULL',[digest(token)]);return user||null;};
@@ -173,6 +175,16 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
       });
     },
     async userFromToken(token){const user=await userByToken(token);return user?profile(user):null;},
+    async setAvatar(userId,avatar){
+      if(typeof avatar!=='string'||avatar.length>180000)throw fail(400,'La foto es demasiado grande. Elige otra imagen.');
+      if(avatar){
+        if(!/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/.test(avatar))throw fail(400,'Formato de foto no válido.');
+        const bytes=Buffer.from(avatar.split(',')[1],'base64');
+        if(bytes.length<4||bytes[0]!==255||bytes[1]!==216||bytes[2]!==255||bytes[bytes.length-2]!==255||bytes[bytes.length-1]!==217)throw fail(400,'La imagen no es válida.');
+      }
+      await pool.execute('UPDATE arcangel_users SET avatar_data=? WHERE catalog_id=? AND user_id=?',[avatar||null,cat,userId]);
+      return {avatar_url:avatar};
+    },
     async logout(token){await query(pool,'DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND token_hash=?',[digest(token)]);},
     async movements(userId){return (await query(pool,'SELECT entry_id,kind,amount_cents,status,reference,note,created_at FROM arcangel_ledger WHERE catalog_id=? AND user_id=? ORDER BY created_at DESC,entry_id LIMIT 200',[userId])).map(row=>({...row,amount_cents:Number(row.amount_cents)}));},
     async topup(userId,input){

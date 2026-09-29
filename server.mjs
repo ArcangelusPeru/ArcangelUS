@@ -180,6 +180,23 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(url.pathname==='/healthz')return send(200,{status:'ok'});
       if(url.pathname.startsWith('/api/')){
         if(req.headers.origin&&!access.sameOrigin(req))throw fail(403,'Origen no permitido.');
+        if(/^\/api\/(admin\/)?advertising(?:\/|$)/.test(url.pathname)){
+          if(!store?.commerce)throw fail(503,'Configura la tienda para usar Publicidad.');
+          const admin=url.pathname.startsWith('/api/admin/'),id=url.pathname.split('/advertising')[1].replace(/^\//,'');
+          if(['GET','HEAD'].includes(req.method)){
+            if(admin)access.require(req);else if(!await store.commerce.userFromToken(customerToken(req,store.catalogId)))throw fail(401,'Inicia sesión para ver la publicidad.');
+            if(!id)return send(200,{items:await store.listAdverts()});
+            if(!/^[a-f0-9-]{36}$/.test(id))throw fail(404,'Imagen no encontrada.');
+            const media=await store.advertMedia(id),image=media?await store.getImage(media):null;if(!image)throw fail(404,'Imagen no encontrada.');
+            if(url.searchParams.has('download'))res.setHeader('Content-Disposition','attachment; filename="publicidad-'+id+'.'+media.split('.').pop()+'"');
+            res.writeHead(200,{'Content-Type':image.mime,'Content-Length':image.bytes.length});return res.end(req.method==='HEAD'?undefined:image.bytes);
+          }
+          if(!admin||req.method!=='POST')throw fail(405,'Método no permitido.');access.checkWrite(req);
+          if(id){if(!/^[a-f0-9-]{36}$/.test(id)||url.searchParams.get('action')!=='remove')throw fail(400,'Solicitud no válida.');await store.removeAdvert(id);return send(200,{ok:true});}
+          const title=(url.searchParams.get('title')||'').trim();if(!title||title.length>160)throw fail(400,'Escribe un título de hasta 160 caracteres.');
+          const bytes=await body(req,10*1024*1024),type=detectImage(bytes);if(!type||!['png','jpg','jpeg','webp','gif'].includes(type[0]))throw fail(400,'Selecciona una imagen JPG, PNG, WebP o GIF.');
+          const imageId=randomUUID(),media='advertising/'+imageId+'.'+type[0];await store.putImage(media,type[1],bytes);await store.addAdvert(imageId,title,media);return send(201,{id:imageId,title});
+        }
         const tutorialPath=url.pathname.replace('/api/admin/tutorials','/api/tutorials');
         if(['GET','HEAD'].includes(req.method)&&(tutorialPath==='/api/tutorials'||tutorialPath.startsWith('/api/tutorials/'))){
           if(!store?.commerce)throw fail(503,'Tutoriales requiere la tienda configurada.');

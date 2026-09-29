@@ -110,7 +110,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
     }
     if(req.method!=='POST')throw fail(405,'Método no permitido.');
     if(!access.sameOrigin(req)||req.headers['x-shop-client']!=='1')throw fail(403,'Recarga la página para continuar.');
-    const data=await input(req);
+    const data=await input(req,url.pathname==='/api/shop/profile/avatar'?190000:128*1024);
     const action=url.pathname.split('/').pop();
     if(['/api/shop/register','/api/shop/login','/api/shop/recover'].includes(url.pathname)){
       const identifier=action==='login'?text(data.identifier??data.email,'el usuario o correo',254):data.email;
@@ -133,6 +133,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       case '/api/shop/yape/verify':
         await commerce.limit('yape-check:'+user.id,9,3600);
         return done(200,await commerce.yape.verify(user.id,data));
+      case '/api/shop/profile/avatar':await commerce.limit('avatar:'+user.id,20,3600);return done(200,await commerce.setAvatar(user.id,data.avatar));
       case '/api/shop/logout':await commerce.logout(cookie(req));setCookie(req,res,'',0);return done(200,{ok:true});
       case '/api/shop/topups':return done(201,await commerce.topup(user.id,data));
       case '/api/shop/mercadopago/create':
