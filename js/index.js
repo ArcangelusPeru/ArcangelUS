@@ -553,6 +553,7 @@ function applyCategories(data) {
   gamesTitle.setAttribute('aria-expanded', localStorage.getItem('arcangel-games-panel-open') === '1' ? 'true' : 'false');
   gamesTitle.setAttribute('aria-controls', 'games-category-options');
   gamesTitle.title = 'Mostrar u ocultar categorías de juegos';
+  const gamesArrow=document.createElement('span');gamesArrow.className='games-category-arrow';gamesArrow.setAttribute('aria-hidden','true');gamesArrow.textContent='›';gamesTitle.appendChild(gamesArrow);
   gamesGroup.appendChild(gamesTitle);
   const gamesOptions = document.createElement('div'); gamesOptions.id='games-category-options'; gamesOptions.className='games-category-options';
   if(localStorage.getItem('arcangel-games-panel-open') !== '1') gamesGroup.classList.add('games-panel-collapsed');
@@ -570,7 +571,7 @@ function applyCategories(data) {
     if (['recargas-juegos','tarjetas-regalo','claves-juegos'].includes(cat.slug)) gamesOptions.appendChild(btn); else filtersEl.appendChild(btn);
   });
   gamesGroup.appendChild(gamesOptions);
-  if (gamesOptions.children.length) { filtersEl.appendChild(gamesGroup); filtersEl.appendChild(favChip); }
+  if (gamesOptions.children.length) { gamesOptions.appendChild(favChip); filtersEl.appendChild(gamesGroup); }
   requestAnimationFrame(updateFiltersScrollHint);
 }
 let loadedRevision = null;
