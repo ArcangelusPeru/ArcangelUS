@@ -188,7 +188,7 @@
   async function boot(){
     const session=await api('/api/admin/session');
     if(session.hosted&&!session.authenticated){showLogin(session.configured);return;}
-    storage=await api('/api/admin/storage');token=storage.token;$('.admin-shell').hidden=false;$('#loginScreen').hidden=true;$('#logoutButton').hidden=!session.hosted;$('#accessLabel').textContent=storage.kind==='mysql'?'MySQL · '+storage.catalogId:'En este equipo';
+    storage=await api('/api/admin/storage?summary=1');token=storage.token;$('.admin-shell').hidden=false;$('#loginScreen').hidden=true;$('#logoutButton').hidden=!session.hosted;$('#accessLabel').textContent=storage.kind==='mysql'?'MySQL · '+storage.catalogId:'En este equipo';
     if(!storage.initialized){showSetup();return;}
     window.arcangelYapeVoice?.start({api});
     window.arcangelAlerts?.start({api,onReview:(section='salesTopups')=>{if(saving||pendingUploads||dirty){toast('Guarda o cierra los cambios antes de revisar los avisos.',true);return;}openCommerceSection(section);}});
