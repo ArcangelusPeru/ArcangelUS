@@ -160,3 +160,44 @@ dialog{padding:0;color:inherit;background:#10151f;border:1px solid #343e50;borde
 }
 #inventoryList .inventory-table td:nth-child(6){order:8;grid-column:span 1}
 #inventoryList .inventory-table td:nth-child(1){order:9}
+
+/* Selección visible y fichas coherentes para ventas, reportes y reemplazos. */
+#inventoryList .inventory-table td:nth-child(1):has(>.help){display:flex}
+#inventoryList .inventory-table td:nth-child(1):has(>.help):after{content:'Cuenta vinculada: no eliminable';color:#8998af;font-size:11px}
+#inventoryList .inventory-results .expired-select-label,.sales-cards .inventory-results .expired-select-label{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #465166;border-radius:8px;color:#edf3ff;white-space:normal}
+#inventoryList input[type=checkbox],.sales-cards input[type=checkbox]{width:20px;height:20px;accent-color:#ed4055;flex:none}
+.sales-cards .inventory-table-wrap{max-height:none;overflow:visible;border:0}
+.sales-cards .inventory-table,.sales-cards .inventory-table tbody{display:block;width:100%;min-width:0}
+.sales-cards .inventory-table thead{display:none}
+.sales-cards .inventory-table tbody tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 24px;padding:20px;margin-bottom:16px;border:1px solid #2b3444;border-radius:16px;background:#101620}
+.sales-cards .inventory-table tbody tr[hidden]{display:none!important}
+.sales-cards .inventory-table td{display:flex;flex-direction:column;gap:6px;min-width:0!important;width:auto;max-width:none;padding:0;border:0;font-size:13px;line-height:1.5;word-break:normal;overflow-wrap:anywhere;order:2;grid-column:auto}
+.sales-cards .inventory-table td:before{content:attr(data-label);color:#8998af;font-size:10px;font-weight:600;letter-spacing:.07em;text-transform:uppercase}
+.sales-cards .inventory-table td:has(.inventory-platform){order:0;grid-column:span 3;padding-bottom:14px;border-bottom:1px solid #263040}
+.sales-cards .inventory-table td:has(.inventory-platform):before{display:none}
+.sales-cards .inventory-table td[data-label=Estado]{order:1;align-items:flex-end;justify-content:center;border-bottom:1px solid #263040;padding-bottom:14px}
+.sales-cards .inventory-table td[data-label=Estado]:before{display:none}
+.sales-cards .inventory-table td[data-label=Acciones]{order:5;grid-column:1/-1;border-top:1px solid #263040;padding-top:14px}
+.sales-cards .inventory-table td[data-label=Problema],.sales-cards .inventory-table td[data-label=Respuesta]{grid-column:span 2;order:3}
+.sales-cards .inventory-platform{display:flex;width:100%;gap:12px;min-width:0;align-items:center}
+.sales-cards .inventory-platform img{width:60px;height:46px;object-fit:contain;border-radius:8px;flex:none}
+.sales-cards .inventory-platform strong{font-size:16px;word-break:normal;overflow-wrap:anywhere}
+.sales-cards .inventory-table td *{max-width:100%;min-width:0;white-space:normal;word-break:normal;overflow-wrap:anywhere}
+.sales-cards .badge{width:fit-content;line-height:1.4}
+.sales-cards .sales-row-actions{display:flex;flex-wrap:wrap;align-items:flex-start;gap:12px;width:100%}
+.sales-cards .sales-actions[open]{width:100%}
+.sales-cards .sales-actions summary{display:inline-flex;padding:8px 14px;border:1px solid #465166;border-radius:8px;background:#1c2533;color:#edf3ff;cursor:pointer}
+.sales-cards .sales-row-form{width:100%;max-width:640px}
+.sales-cards .inventory-table tr:has(.inventory-empty){display:block}
+.sales-cards .inventory-empty:before{display:none}
+@media(max-width:700px){
+.sales-cards .inventory-table tbody tr{grid-template-columns:repeat(2,minmax(0,1fr));padding:16px;gap:16px}
+.sales-cards .inventory-table td:has(.inventory-platform),.sales-cards .inventory-table td[data-label=Estado],.sales-cards .inventory-table td.inventory-email{grid-column:1/-1}
+.sales-cards .inventory-table td:has(.inventory-platform){border:0;padding-bottom:0}
+.sales-cards .inventory-table td[data-label=Estado]{align-items:flex-start}
+.sales-cards .inventory-results{flex-wrap:wrap;gap:12px}
+}
+#reportsTable.sales-cards .sales-table{min-width:0}
+.sales-cards .inventory-table td.sales-note{max-width:none!important}
+.sales-cards .inventory-results{flex-wrap:wrap;gap:12px}
+.sales-cards .sales-actions[open],.sales-cards .sales-message[open]{min-width:0;max-width:100%}

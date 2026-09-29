@@ -35,6 +35,14 @@ window.renderCommercePanel=async function(ctx){
   }
   function bindSalesTable(key,onDraw=()=>{}){
     const box=root.querySelector('#'+key),rows=[...box.querySelectorAll('[data-sales-row]')];
+    if(['ordersTable','reportsTable','replacementsTable'].includes(key)){
+      box.classList.add('sales-cards');
+      const headings=[...box.querySelectorAll('thead th')].map(th=>th.textContent.trim());
+      rows.forEach(row=>[...row.cells].forEach((cell,index)=>{cell.dataset.label=headings[index]||'';}));
+      const selection=box.querySelector('[data-expired-order-all]')?.closest('label');
+      if(selection)box.querySelector('.inventory-results').append(selection);
+      const hint=box.querySelector('.inventory-results .help');if(hint)hint.textContent='Datos y acciones organizados por registro.';
+    }
     const saved=window.renderCommercePanel.tableFilters||(window.renderCommercePanel.tableFilters={});
     const state=saved[key]||(saved[key]={search:'',status:'all',size:25,page:1});
     const search=box.querySelector('[data-sales-search]'),filter=box.querySelector('[data-sales-status]'),size=box.querySelector('[data-sales-size]');
@@ -240,6 +248,8 @@ window.renderCommercePanel=async function(ctx){
   }
   function bindInventorySelection(){
     const list=root.querySelector('#inventoryList'),toolbar=root.querySelector('#inventorySelectionToolbar');if(!list||!toolbar)return;
+    const selection=list.querySelector('[data-inventory-all]')?.closest('label');
+    if(selection)list.querySelector('.inventory-results').append(selection);
     const all=list.querySelector('[data-inventory-all]'),checks=[...list.querySelectorAll('[data-inventory-select]')],bulk=toolbar.querySelector('[data-inventory-delete]'),clear=toolbar.querySelector('[data-inventory-clear]');
     checks.forEach(check=>{check.checked=selectedInventory.has(check.dataset.inventorySelect);});
     const visibleChecks=()=>checks.filter(check=>!check.closest('tr').hidden);
