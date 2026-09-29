@@ -3,7 +3,24 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { gzip } from 'node:zlib';
+import { promisify } from 'node:util';
+const compressStatic = promisify(gzip);
+
+async function sendStatic(req,res,bytes,mime){
+  const etag='"'+createHash('sha256').update(bytes).digest('hex')+'"';
+  res.setHeader('Cache-Control','public, max-age=0, must-revalidate');
+  res.setHeader('ETag',etag);
+  res.setHeader('Vary','Accept-Encoding');
+  res.setHeader('Content-Type',mime);
+  if(String(req.headers['if-none-match']||'').split(',').map(v=>v.trim().replace(/^W\//,'')).includes(etag)){res.writeHead(304);return res.end();}
+  const enc=String(req.headers['accept-encoding']||'').split(',').map(v=>v.trim().split(';').map(x=>x.trim()));
+  const acceptsGzip=enc.some(([name,...params])=>name==='gzip'&&!params.some(p=>/^q=0(?:\.0*)?$/.test(p)));
+  if(bytes.length>1024&&/^(text\/|application\/(javascript|json))/.test(mime)&&acceptsGzip){bytes=await compressStatic(bytes);res.setHeader('Content-Encoding','gzip');}
+  res.setHeader('Content-Length',bytes.length);res.writeHead(200);res.end(req.method==='HEAD'?undefined:bytes);
+}
+
 import { createAdminAccess, launchConfig } from './hosting.mjs';
 import { createMySQLStore, databaseConfig } from './mysql-store.mjs';
 import { downloadBackup, importBackup, uploadPaths } from './backup.mjs';
@@ -224,7 +241,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
         if(req.method==='GET'&&url.pathname==='/api/admin/state'){const {token}=access.require(req);return send(200,{...await requiredState(),token});}
         if(req.method==='GET'&&url.pathname==='/api/admin/storage'){
           const {token}=access.require(req),saved=await readState();
-          return send(200,{token,kind:store?'mysql':'local',catalogId:store?.catalogId||'local',initialized:!!saved,revision:saved?.revision??null,legacyAvailable:hosted&&await hasLegacy(),backups:store?await store.listBackups():[]});
+          return send(200,{token,kind:store?'mysql':'local',catalogId:store?.catalogId||'local',initialized:!!saved,revision:saved?.revision??null,legacyAvailable:hosted&&await hasLegacy(),backups:store&&url.searchParams.get('summary')!=='1'?await store.listBackups():[]});
         }
         if(req.method==='GET'&&url.pathname==='/api/admin/backup'){
           access.require(req);const revision=url.searchParams.get('revision');
@@ -306,7 +323,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
         if(ext==='.png')try{bytes=await fs.readFile(file.slice(0,-4)+'.webp');ext='.webp';}catch{}
         if(!bytes)throw fail(404,'No encontrado.');
       }
-      res.writeHead(200,{'Content-Type':MIME[ext]});res.end(req.method==='HEAD'?undefined:bytes);
+      await sendStatic(req,res,bytes,MIME[ext]);
     }catch(e){if(!res.headersSent)send(e.status||503,{error:e.status?e.message:'No se pudo acceder al almacenamiento. Los cambios no se han confirmado. Recarga el panel para comprobar su estado.'});else res.destroy();if(!e.status)console.error('[STORAGE_ERROR]',e.code||e.name);}
   });
   if(store?.commerce){let working=false;const timer=setInterval(async()=>{if(working)return;working=true;try{await store.commerce.fazer.orders.tick();}catch{console.error('[FAZER_RECONCILE_FAILED]');}finally{working=false;}},30000);timer.unref();server.on('close',()=>clearInterval(timer));}
