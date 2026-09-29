@@ -104,3 +104,59 @@ dialog{padding:0;color:inherit;background:#10151f;border:1px solid #343e50;borde
   .inventory-table .inventory-password > span,.inventory-table .inventory-pin{white-space:normal;overflow-wrap:anywhere;word-break:normal}
   .inventory-table .inventory-state{display:inline-block;max-width:100%;white-space:normal;overflow-wrap:anywhere;line-height:1.35}
 }
+
+/* Fichas de cuentas: cabecera clara, campos compactos y acciones separadas. */
+#inventoryList .inventory-table-wrap{max-height:none;overflow:visible;border:0}
+#inventoryList .inventory-table,#inventoryList .inventory-table tbody{display:block;width:100%;min-width:0}
+#inventoryList .inventory-table thead{display:none}
+#inventoryList .inventory-table tbody tr{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px 20px;padding:20px;margin:0 0 16px;background:#101620;border:1px solid #2b3444;border-radius:16px}
+#inventoryList .inventory-table td{display:flex;flex-direction:column;gap:6px;padding:0;border:0;min-width:0!important;max-width:none;width:auto;font-size:13px;line-height:1.5;overflow-wrap:anywhere;word-break:normal}
+#inventoryList .inventory-table td:before{color:#8998af;font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+#inventoryList .inventory-table td:nth-child(1){order:8;justify-content:center}
+#inventoryList .inventory-table td:nth-child(1):before{content:'Seleccionar'}
+#inventoryList .inventory-table td:nth-child(1):has(>.help){display:none}
+#inventoryList .inventory-table td:nth-child(2){order:3}
+#inventoryList .inventory-table td:nth-child(2):before{content:'Código de cuenta'}
+#inventoryList .inventory-table td:nth-child(3){order:0;grid-column:span 3;padding-bottom:14px;border-bottom:1px solid #263040}
+#inventoryList .inventory-table td:nth-child(3):before{display:none}
+#inventoryList .inventory-table td:nth-child(4){order:2;grid-column:span 2}
+#inventoryList .inventory-table td:nth-child(4):before{content:'Correo / usuario'}
+#inventoryList .inventory-table td:nth-child(5){order:4}
+#inventoryList .inventory-table td:nth-child(5):before{content:'Contraseña'}
+#inventoryList .inventory-table td:nth-child(6){order:9;grid-column:span 2}
+#inventoryList .inventory-table td:nth-child(6):before{content:'Enlace de acceso'}
+#inventoryList .inventory-table td:nth-child(7){order:5}
+#inventoryList .inventory-table td:nth-child(7):before{content:'Perfil'}
+#inventoryList .inventory-table td:nth-child(8){order:6}
+#inventoryList .inventory-table td:nth-child(8):before{content:'PIN'}
+#inventoryList .inventory-table td:nth-child(9){order:7}
+#inventoryList .inventory-table td:nth-child(9):before{content:'Fecha de creación'}
+#inventoryList .inventory-table td:nth-child(10){order:1;align-items:flex-end;justify-content:center;padding-bottom:14px;border-bottom:1px solid #263040}
+#inventoryList .inventory-table td:nth-child(10):before{display:none}
+#inventoryList .inventory-table td:nth-child(11){order:10;grid-column:1/-1;border-top:1px solid #263040;padding-top:14px}
+#inventoryList .inventory-table td:nth-child(11):before{display:none}
+#inventoryList .inventory-platform{width:100%;min-width:0;gap:12px}
+#inventoryList .inventory-platform img{width:60px;height:46px;object-fit:contain;border-radius:8px}
+#inventoryList .inventory-platform strong{font-size:16px;overflow-wrap:anywhere}
+#inventoryList .inventory-password{flex-direction:row;align-items:center;gap:12px}
+#inventoryList .inventory-table time{width:auto;font-size:12px}
+#inventoryList .inventory-state{width:auto;max-width:100%;border-radius:6px;padding:6px 10px;white-space:normal}
+#inventoryList .inventory-actions,#inventoryList .inventory-actions[open]{width:100%;max-width:none}
+#inventoryList .inventory-actions summary{display:inline-flex;align-items:center;gap:10px;list-style:none;padding:8px 14px;border:1px solid #465166;border-radius:8px;background:#1c2533;color:#edf3ff;font-size:12px;font-weight:600}
+#inventoryList .inventory-actions summary::-webkit-details-marker{display:none}
+#inventoryList .inventory-actions summary:after{content:'+';font-size:16px}
+#inventoryList .inventory-actions[open] summary:after{content:'−'}
+#inventoryList .inventory-actions .private-delivery{max-width:100%;white-space:pre-wrap;overflow-wrap:anywhere}
+#inventoryList .inventory-actions .retire-form{max-width:440px}
+#inventoryList .inventory-table tr:has(.inventory-empty){display:block}
+#inventoryList .inventory-empty:before{display:none}
+@media(max-width:700px){
+#inventoryList .inventory-table tbody tr{grid-template-columns:repeat(2,minmax(0,1fr));padding:16px;gap:16px}
+#inventoryList .inventory-table td:nth-child(3){grid-column:1/-1;padding-bottom:0;border:0}
+#inventoryList .inventory-table td:nth-child(10){grid-column:1/-1;align-items:flex-start;padding-bottom:12px}
+#inventoryList .inventory-table td:nth-child(4){grid-column:1/-1}
+#inventoryList .inventory-results{flex-direction:column;gap:8px}
+#inventoryList .inventory-results .help{text-align:left}
+}
+#inventoryList .inventory-table td:nth-child(6){order:8;grid-column:span 1}
+#inventoryList .inventory-table td:nth-child(1){order:9}
