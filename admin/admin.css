@@ -49,3 +49,44 @@ dialog{padding:0;color:inherit;background:#10151f;border:1px solid #343e50;borde
 .refund-dialog{width:min(540px,calc(100vw - 32px));max-height:90vh;overflow:auto;border-color:#8c3d49}.refund-dialog form{padding:26px;display:grid;gap:18px}.refund-dialog h2{font-size:23px}.refund-dialog .help{line-height:1.6}.refund-breakdown{margin:0;display:grid;gap:0;border:1px solid #3d3544;border-radius:10px;overflow:hidden}.refund-breakdown>div{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:12px 16px;background:#141a25}.refund-breakdown>div+div{border-top:1px solid #303544}.refund-breakdown dt{font-size:13px;color:#bdc9dc}.refund-breakdown dd{margin:0;font-weight:600;font-variant-numeric:tabular-nums}.refund-breakdown .refund-result{background:#472330}.refund-result dd{color:#ffced6;font-size:21px}.refund-error{color:#ffb4b4;line-height:1.6}.refund-unavailable{max-width:190px;line-height:1.6}.refund-dialog .row-actions{justify-content:flex-end;flex-wrap:wrap}
 
 .advert-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:20px}.advert-card{min-width:0;border:1px solid #34394b;border-radius:14px;padding:16px;background:#111620}.advert-card img{display:block;width:100%;height:220px;object-fit:contain;background:#0a0d14;border-radius:8px}.advert-card h3{overflow-wrap:anywhere;margin:14px 0}.advert-card .button{margin:4px}
+
+/* Tabla de inventario adaptable: evita el desplazamiento horizontal */
+.inventory-table-wrap{overflow-x:hidden}
+.inventory-table{min-width:0;width:100%;table-layout:fixed}
+.inventory-table th,.inventory-table td{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.inventory-table th{padding:11px 9px;font-size:10px}
+.inventory-table td{padding:12px 9px}
+.inventory-platform{width:auto;min-width:0}
+.inventory-platform img{width:52px;height:40px}
+.inventory-email{min-width:0;max-width:none}
+.inventory-password{min-width:0}
+.inventory-url{min-width:0;max-width:none!important}
+.inventory-actions{min-width:0}
+
+/* En pantallas medianas la tabla se presenta como fichas legibles */
+@media (max-width:1400px){
+  .inventory-table-wrap{overflow:visible;border:0}
+  .inventory-table,.inventory-table tbody{display:block;width:100%}
+  .inventory-table thead{display:none}
+  .inventory-table tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 18px;margin:0 0 14px;padding:14px;border:1px solid var(--line);border-radius:10px;background:#111620}
+  .inventory-table td{display:grid;grid-template-columns:125px minmax(0,1fr);gap:10px;align-items:start;width:auto;max-width:none;min-width:0!important;padding:8px 0;border:0;line-height:1.45}
+  .inventory-table td:before{color:var(--muted);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+  .inventory-table td:nth-child(1):before{content:'Selección / ID'}
+  .inventory-table td:nth-child(2):before{content:'Código'}
+  .inventory-table td:nth-child(3):before{content:'Producto'}
+  .inventory-table td:nth-child(4):before{content:'Correo / usuario'}
+  .inventory-table td:nth-child(5):before{content:'Clave'}
+  .inventory-table td:nth-child(6):before{content:'URL'}
+  .inventory-table td:nth-child(7):before{content:'Perfil'}
+  .inventory-table td:nth-child(8):before{content:'PIN'}
+  .inventory-table td:nth-child(9):before{content:'Creado'}
+  .inventory-table td:nth-child(10):before{content:'Estado'}
+  .inventory-table td:nth-child(11):before{content:'Acciones'}
+  .inventory-table .inventory-platform{width:auto}
+  .inventory-table .inventory-platform img{width:58px;height:42px}
+  .inventory-table .inventory-actions{grid-column:1/-1}
+}
+@media (max-width:700px){
+  .inventory-table tr{grid-template-columns:1fr}
+  .inventory-table td{grid-template-columns:110px minmax(0,1fr)}
+}
