@@ -43,3 +43,9 @@
 .yape-auto-card.yape-offline .yape-offline-notice{display:block;margin:16px 0;padding:12px 14px;border:1px solid #a74b58;border-radius:9px;background:#351b23;color:#ffc4ca;font-weight:600;line-height:1.5}
 .yape-auto-card.yape-offline [data-check]{pointer-events:auto}
 .yape-offline-notice small{display:block;margin-top:7px;font-size:12px;font-weight:400}
+.wallet-columns{position:relative}
+.wallet-columns.wallet-offline> :not([data-wallet-offline]){opacity:.28;filter:grayscale(.7);pointer-events:none;user-select:none}
+.wallet-offline-notice{grid-column:1/-1;order:-1;display:flex;align-items:center;gap:16px;position:relative;z-index:2;padding:22px 24px;border:1px solid #a74b58;border-radius:14px;background:linear-gradient(135deg,#3a1c26,#211721);color:#ffd9dc;box-shadow:0 12px 30px #0008}
+.wallet-offline-notice strong{display:block;font-size:18px;color:#fff1f2}.wallet-offline-notice p{margin:5px 0;color:#ffc4ca;line-height:1.5}.wallet-offline-notice small{color:#e6aeb5}.wallet-offline-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:50%;background:#a84756;color:#fff;font-size:24px}.wallet-offline-notice>div{flex:1;min-width:0}.wallet-offline-notice .button{flex:0 0 auto;pointer-events:auto}
+@media(max-width:600px){.wallet-offline-notice{align-items:flex-start;flex-wrap:wrap;padding:18px}.wallet-offline-notice .button{margin-left:58px}}
+
