@@ -19,7 +19,7 @@
       if(!online&&!walletNotice){
         walletNotice=document.createElement('div');
         walletNotice.className='wallet-offline-notice';walletNotice.dataset.walletOffline='';walletNotice.setAttribute('role','alert');
-        walletNotice.innerHTML='<span class="wallet-offline-icon" aria-hidden="true">⚠</span><div><strong>El servidor está sin señal</strong><p>El sector de recargas está temporalmente bloqueado. Inténtalo más tarde.</p></div><button type="button" class="button secondary" data-wallet-check>Comprobar conexión</button>';
+        walletNotice.innerHTML='<span class="wallet-offline-icon" aria-hidden="true"><svg viewBox="0 0 64 64" fill="none"><path d="M27 10a6 6 0 0 1 10 0l24 42a6 6 0 0 1-5 9H8a6 6 0 0 1-5-9Z" fill="#a71735" stroke="#ff6881" stroke-width="3"/><path d="M32 24v15" stroke="white" stroke-width="5" stroke-linecap="round"/><circle cx="32" cy="49" r="3" fill="white"/></svg></span><div class="wallet-offline-copy"><span class="wallet-offline-label">SIN CONEXIÓN RECIENTE</span><strong>El servidor está <em>sin señal</em></strong><p>El sector de recargas está temporalmente bloqueado.<br>Inténtalo más tarde.</p></div><svg class="wallet-offline-wifi" viewBox="0 0 100 90" fill="none" aria-hidden="true"><path d="M10 25Q50-7 90 25M23 43Q50 20 77 43M37 60Q50 49 63 60" stroke="#bdb0c6" stroke-width="10" stroke-linecap="round"/><circle cx="50" cy="77" r="7" fill="#ff355a"/><circle cx="79" cy="65" r="19" fill="#ef244e"/><path d="m72 58 14 14m0-14L72 72" stroke="white" stroke-width="5"/></svg><button type="button" class="button secondary" data-wallet-check><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20 8a8 8 0 1 0 0 8M20 3v5h-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>Comprobar conexión</button>';
         wallet.prepend(walletNotice);
       } else if(online) walletNotice?.remove();
       const pending=claim?.status==='yape_pending';
@@ -27,7 +27,8 @@
       box.querySelectorAll('form input,form button').forEach(control=>control.disabled=!online);
       const qr=box.querySelector('img');if(qr)qr.onerror=()=>{box.querySelector('[role=status]').textContent='No se pudo cargar el QR. No pagues hasta que se vea correctamente.';box.querySelector('[data-verify] button').disabled=true;};
       box.querySelector('[data-check]')?.addEventListener('click',load);
-      wallet.querySelector('[data-wallet-check]')?.addEventListener('click',load);
+      const check=wallet.querySelector('[data-wallet-check]');if(check)check.onclick=load;
+      Array.from(wallet.children).forEach(child=>{if(!child.hasAttribute('data-wallet-offline'))child.inert=!online;});
       const start=box.querySelector('[data-start]');if(start){if(draft)start.elements.amount_soles.value=draft.amount_soles;start.onsubmit=async e=>{e.preventDefault();await run(async()=>{
         const amount=Number(start.elements.amount_soles.value).toFixed(2);
         if(draft&&draft.amount_soles!==amount)throw Error('Reintenta con el monto anterior para confirmar esa solicitud.');

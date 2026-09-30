@@ -49,3 +49,20 @@
 .wallet-offline-notice strong{display:block;font-size:18px;color:#fff1f2}.wallet-offline-notice p{margin:5px 0;color:#ffc4ca;line-height:1.5}.wallet-offline-notice small{color:#e6aeb5}.wallet-offline-icon{display:grid;place-items:center;flex:0 0 42px;width:42px;height:42px;border-radius:50%;background:#a84756;color:#fff;font-size:24px}.wallet-offline-notice>div{flex:1;min-width:0}.wallet-offline-notice .button{flex:0 0 auto;pointer-events:auto}
 @media(max-width:600px){.wallet-offline-notice{align-items:flex-start;flex-wrap:wrap;padding:18px}.wallet-offline-notice .button{margin-left:58px}}
 
+/* Banner de conexión: estilo gaming adaptable. */
+.wallet-offline-notice{isolation:isolate;overflow:hidden;gap:22px;min-height:180px;padding:28px;border:2px solid #d32a4b;border-radius:18px 5px;background:radial-gradient(ellipse at 0 100%,#8b143a66,transparent 55%),linear-gradient(110deg,#180e19,#0d0e16 60%,#39101f);box-shadow:inset 0 0 0 5px #09090eb3,inset 0 0 28px #e91f4530,0 0 20px #ef244e20}
+.wallet-offline-notice:before,.wallet-offline-notice:after{content:"";position:absolute;z-index:-1;pointer-events:none}
+.wallet-offline-notice:before{inset:8px;border:1px solid #fb416060;border-radius:12px 2px;background:repeating-linear-gradient(135deg,transparent 0 23px,#fc244d09 23px 36px)}
+.wallet-offline-notice:after{height:3px;top:0;left:5%;right:5%;background:#ff4c6c;box-shadow:0 0 16px 5px #f2224a77}
+.wallet-offline-icon{background:none;border-radius:0;flex-basis:64px;width:64px;height:72px;filter:drop-shadow(0 0 12px #ff214a88)}
+.wallet-offline-icon svg{width:64px;height:64px}.wallet-offline-copy{position:relative}.wallet-offline-label{display:block;color:#ff849a;font-size:10px;font-weight:800;letter-spacing:.15em;margin-bottom:10px}
+.wallet-offline-notice strong{font-size:clamp(22px,2.4vw,34px);line-height:1.14;font-weight:800;letter-spacing:-.035em}.wallet-offline-notice em{font-style:normal;color:#ff345a}.wallet-offline-notice p{font-size:14px;color:#c6bccd;margin-top:12px;line-height:1.65}
+.wallet-offline-wifi{width:85px;height:85px;flex-shrink:0;filter:drop-shadow(0 0 10px #fb244633)}
+.wallet-offline-notice .button{display:flex;align-items:center;justify-content:center;gap:10px;min-height:54px;margin:0;padding:15px 18px;border:1px solid #ff738d;border-radius:12px;background:linear-gradient(#a61c3a,#571024);color:#fff;box-shadow:inset 0 2px 5px #ff9bad55,0 0 14px #ff245a55;font-weight:800;font-size:13px;white-space:nowrap}.wallet-offline-notice .button svg{width:22px;height:22px}.wallet-offline-notice .button:hover{background:linear-gradient(#d4274e,#7b1730)}.wallet-offline-notice .button:focus-visible{outline:3px solid white;outline-offset:4px}
+.wallet-offline .yape-offline-notice,.wallet-offline .yape-auto-card [data-check]{display:none!important}
+@media(max-width:1000px){.wallet-offline-wifi{display:none}.wallet-offline-notice{gap:16px;padding:25px 20px}.wallet-offline-notice strong{font-size:25px}}
+@media(max-width:600px){.wallet-offline-notice{display:grid;grid-template-columns:46px minmax(0,1fr);gap:16px;padding:24px 18px}.wallet-offline-icon,.wallet-offline-icon svg{width:46px;height:52px}.wallet-offline-notice strong{font-size:25px}.wallet-offline-notice p{font-size:13px}.wallet-offline-notice .button{grid-column:1/-1;width:100%;margin:0}.wallet-offline-label{font-size:9px}}
+/* Aviso centrado sobre todo el sector de recargas. */
+.wallet-columns.wallet-offline{min-height:480px}
+.wallet-columns.wallet-offline>.wallet-offline-notice{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:calc(100% - 24px);box-sizing:border-box;margin:0;z-index:3}
+@media(max-width:600px){.wallet-columns.wallet-offline>.wallet-offline-notice{width:calc(100% - 12px)}}
