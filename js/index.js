@@ -492,6 +492,7 @@ window.addEventListener('popstate', () => {
 window.addEventListener('scroll', () => {
   document.getElementById('scrollTop').classList.toggle('show', window.scrollY > 400);
 });
+let gamesPanelOpen = false; // Reset on each page load; keep the choice during this visit.
 function applyCategories(data) {
   const CATEGORY_IMAGES = {
     all: 'logo/todos.png',
@@ -550,14 +551,14 @@ function applyCategories(data) {
   gamesTitle.type = 'button';
   gamesTitle.textContent = 'Juegos y tarjetas';
   gamesTitle.className = 'games-category-title';
-  gamesTitle.setAttribute('aria-expanded', localStorage.getItem('arcangel-games-panel-open') === '1' ? 'true' : 'false');
+  gamesTitle.setAttribute('aria-expanded', String(gamesPanelOpen));
   gamesTitle.setAttribute('aria-controls', 'games-category-options');
   gamesTitle.title = 'Mostrar u ocultar categorías de juegos';
   const gamesArrow=document.createElement('span');gamesArrow.className='games-category-arrow';gamesArrow.setAttribute('aria-hidden','true');gamesArrow.textContent='›';gamesTitle.appendChild(gamesArrow);
   gamesGroup.appendChild(gamesTitle);
   const gamesOptions = document.createElement('div'); gamesOptions.id='games-category-options'; gamesOptions.className='games-category-options';
-  if(localStorage.getItem('arcangel-games-panel-open') !== '1') gamesGroup.classList.add('games-panel-collapsed');
-  gamesTitle.onclick=()=>{const open=!gamesGroup.classList.toggle('games-panel-collapsed');gamesTitle.setAttribute('aria-expanded',String(open));localStorage.setItem('arcangel-games-panel-open',open?'1':'0');requestAnimationFrame(updateFiltersScrollHint);};
+  if(!gamesPanelOpen) gamesGroup.classList.add('games-panel-collapsed');
+  gamesTitle.onclick=()=>{const open=!gamesGroup.classList.toggle('games-panel-collapsed');gamesTitle.setAttribute('aria-expanded',String(open));gamesPanelOpen=open;requestAnimationFrame(updateFiltersScrollHint);};
   (data || []).forEach(cat => {
     const btn = document.createElement('button');
     btn.className = 'filter-chip';
