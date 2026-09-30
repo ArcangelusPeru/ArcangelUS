@@ -1338,3 +1338,30 @@ if (document.readyState === 'loading') {
 </html>
 
 <style>.games-category-arrow{margin-left:auto;font-size:25px;line-height:1;transition:transform .2s}.games-category-title[aria-expanded="true"] .games-category-arrow{transform:rotate(90deg)}.games-category-title:after{content:none!important}.games-category-title{cursor:pointer;background:transparent;border:0;width:100%;text-align:left;font:inherit}.games-category-panel.games-panel-collapsed .games-category-options{display:none!important}.games-category-options{display:contents}</style>
+<style id="mobile-drawer-preview">
+  .catalog-mobile-toggle,.catalog-mobile-overlay{display:none}
+  @media(max-width:700px){
+    .catalog-sidebar{position:fixed!important;z-index:220;left:0!important;top:0!important;bottom:0!important;width:min(292px,86vw)!important;height:100dvh!important;margin:0!important;border-radius:0 14px 14px 0!important;transform:translateX(-105%);transition:transform .24s ease;overflow:hidden!important;padding:16px 7px!important}
+    .catalog-sidebar .filters-section{max-height:none!important;overflow:auto!important;flex:1;min-height:0}
+    .catalog-sidebar .sidebar-help{display:flex}
+    body.catalog-menu-open .catalog-sidebar{transform:translateX(0)}
+    .catalog-mobile-toggle{display:inline-flex;position:fixed;z-index:230;top:12px;left:12px;align-items:center;gap:8px;height:42px;padding:0 14px;border:1px solid #ff4963;border-radius:10px;background:linear-gradient(135deg,#431426,#160b18);color:#fff;font:700 13px var(--font-body,inherit);box-shadow:0 8px 22px #0008;cursor:pointer}
+    .catalog-mobile-toggle .catalog-mobile-icon{font-size:20px;line-height:1}
+    .catalog-mobile-overlay{position:fixed;z-index:210;inset:0;background:#05040bcc;opacity:0;pointer-events:none;transition:opacity .2s ease}
+    body.catalog-menu-open .catalog-mobile-overlay{display:block;opacity:1;pointer-events:auto}
+    body.catalog-menu-open{overflow:hidden}
+    .header>.wrap{width:100%;max-width:none;padding:0 12px}
+    .header-inner{display:block;height:auto!important;min-height:104px!important;padding:12px 0!important}
+    .header-inner>.logo{display:none}
+    .header-right{display:grid;grid-template-columns:minmax(0,1fr) 36px auto;width:100%;margin:0!important;gap:8px!important;align-items:center}
+    .customer-store-nav{grid-column:1/-1;min-width:0;margin-left:98px;display:flex!important;flex-wrap:wrap;justify-content:flex-end;gap:6px!important;min-height:42px}
+    .customer-account-link{justify-content:center;white-space:nowrap;font-size:11px!important;padding:8px!important;min-height:42px!important;border-radius:10px}
+    .header-right>[data-theme-btn]{grid-column:2;width:36px;height:36px}
+    .header-right>.live-mode-toggle{grid-column:3;height:36px;margin:0}
+    .header-right>.live-mode-status:empty{display:none}
+    .header-right>.live-mode-status:not(:empty){grid-column:1/-1}
+    html.local-menu-preview .customer-store-nav[data-commerce]{display:flex!important}
+    .header,.hero,.controls-wrap,main.wrap,.footer{width:100%!important;margin-left:0!important}
+  }
+</style>
+<script src="js/mobile-menu.js?v=20260930-preview"></script>
