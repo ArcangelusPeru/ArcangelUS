@@ -24,15 +24,16 @@
 .purchase-card-grid,.portal-record-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
 /* Compact purchased-account cards. */
 .purchase-card-grid{grid-template-columns:repeat(auto-fill,minmax(min(100%,390px),1fr));align-items:stretch}
-.purchase-card{width:100%;max-width:560px;min-width:0;overflow:hidden;display:flex;flex-direction:column;border:1px solid #20283a;border-radius:13px;background:#050919;box-shadow:0 5px 18px #0002;transition:border-color .15s}
-.purchase-card:hover{border-color:#3f4b69}
+.purchase-card{width:100%;max-width:560px;min-width:0;overflow:hidden;display:flex;flex-direction:column;border:1px solid #4d2942;border-radius:13px;background:linear-gradient(145deg,#1c1220,#0b0b16 72%);box-shadow:0 8px 24px #0005;transition:border-color .15s,transform .15s}
+.purchase-card:hover{border-color:#d4445e;transform:translateY(-2px)}
 .purchase-card-body{display:flex;align-items:flex-start;gap:15px;padding:16px;flex:1;min-width:0;min-height:167px}
-.purchase-platform-logo{width:54px;height:54px;flex:0 0 54px;display:grid;place-items:center;overflow:hidden;border-radius:15px;background:#23252d}
+.purchase-platform-logo{width:54px;height:54px;flex:0 0 54px;display:grid;place-items:center;overflow:hidden;border-radius:15px;background:#241a2b;border:1px solid #563047}
 .purchase-platform-logo img{display:block;width:100%;height:100%;padding:7px;object-fit:contain}
 .purchase-platform-logo img[hidden]{display:none}
 .purchase-card-content{min-width:0;flex:1}
-.purchase-card h3{font:700 15px/1.4 'DM Sans',sans-serif;letter-spacing:.025em;text-transform:uppercase;overflow-wrap:anywhere;color:#e7eaf1}
-.purchase-card .purchase-email{min-width:0;margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:700;letter-spacing:.015em;color:#ffcd00;overflow-wrap:anywhere}
+.purchase-card h3{font:700 15px/1.4 'DM Sans',sans-serif;letter-spacing:.025em;text-transform:uppercase;overflow-wrap:anywhere;color:#f6edf5}
+.purchase-card .purchase-email{min-width:0;margin:4px 0 0;font-size:14px;line-height:1.4;font-weight:700;letter-spacing:.015em;color:#ff687d;overflow-wrap:anywhere}
+.purchase-profile-name{display:block;margin-top:2px;color:#cbb2d0;font-size:12px;line-height:1.4;overflow-wrap:anywhere}
 .purchase-card time{display:block;color:#96a8c9;font-size:12px;line-height:1.5;letter-spacing:.035em;margin:4px 0 9px}
 .purchase-badges{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
 .purchase-card .order-status{display:inline-flex;align-items:center;gap:6px;min-height:28px;padding:3px 8px 3px 4px;border:1px solid #064b3c;border-radius:20px;color:#7aeab6;background:#04221d;font:700 11px/1.3 'DM Sans',sans-serif;white-space:normal;max-width:100%;overflow-wrap:anywhere}
@@ -41,7 +42,7 @@
 .purchase-card .profile-badge{background:#2a1018;border-color:#7c3043;color:#ffb1bd}.profile-badge .purchase-badge-icon{background:#632638}
 .purchase-card .expired,.purchase-card .pending_manual,.purchase-card .refunded{background:#2c1926;border-color:#663444;color:#ffb3bd}.expired .purchase-badge-icon,.pending_manual .purchase-badge-icon,.refunded .purchase-badge-icon{background:#542936}
 .purchase-price-row{margin-top:7px}
-.purchase-card-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-top:1px solid #24293b;background:#050919;min-height:59px}
+.purchase-card-actions{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-top:1px solid #4a263d;background:#100d19;min-height:59px}
 .purchase-support{display:inline-flex;align-items:center;gap:6px;flex-shrink:0;padding:6px 0;border:0;border-radius:5px;background:none;color:#a5a6b1;font:700 12px/1.4 'DM Sans',sans-serif;cursor:pointer}
 .purchase-support:hover{color:#e1e5ee}.purchase-support .portal-icon{width:16px;height:16px}.support-report-dot{width:6px;height:6px;border-radius:50%;background:#ffbb4f}
 .purchase-primary-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-left:auto}

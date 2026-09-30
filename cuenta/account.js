@@ -333,6 +333,7 @@
               <h3>${esc(o.product_name)}</h3>
               <span class="purchase-account-code">${esc(o.account_code||'')}</span>
               <p class="purchase-email">${esc(a?.username||(o.status==='pending_manual'?'Preparando tu cuenta':'Saldo devuelto'))}</p>
+              ${a?.profile?`<span class="purchase-profile-name">Perfil asignado: ${esc(a.profile)}</span>`:''}
               <time datetime="${esc(new Date(o.created_at).toISOString())}">${esc(createdLabel(o.created_at))}</time>
               <div class="purchase-badges">${badge(o.status==='delivered'?'check':'history',o.status==='delivered'?'Completado':statuses[o.status]||o.status,esc(o.status))}${a?badge('clock',remaining(o),expired(o)?'expired':'validity'):''}${a&&(o.product_type||a.profile)?badge('device',o.product_type||a.profile,'profile-badge'):''}</div>
               <div class="purchase-price-row">${badge('coins',money(o.amount_cents),'price-badge')}</div>
