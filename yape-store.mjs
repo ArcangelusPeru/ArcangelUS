@@ -3,6 +3,9 @@ import { fail, requestId, soles, digest, secretToken, equalSecret } from './comm
 import { createYapeReports } from './yape-reports.mjs';
 
 export const YAPE_PACKAGE='com.bcp.innovacxion.yapeapp';
+// The Android listener sends a heartbeat every 30 seconds. Expire the device
+// after 90 seconds so a powered-off phone is detected without waiting minutes.
+export const YAPE_HEARTBEAT_STALE_MS=90000;
 export function firstName(value){
   if(typeof value!=='string'||value.length>100)throw fail(400,'Escribe el primer nombre que aparece en Yape.');
   const name=value.trim().normalize('NFD').replace(/\p{M}/gu,'').toLowerCase();
@@ -29,15 +32,15 @@ export async function createYapeStore({pool,transaction,catalogId:cat,sealer}){
   const view=row=>({id:row.claim_id,amount_cents:Number(row.amount_cents),status:row.status,expires_at:Number(row.expires_at),attempts_remaining:Math.max(0,3-row.attempts)});
   const device=async(db=pool,lock=false)=>{const [[row]]=await db.execute('SELECT * FROM arcangel_yape_devices WHERE catalog_id=?'+(lock?' FOR UPDATE':''),[cat]);return row;};
   const userLock=async(db,id)=>{const [[u]]=await db.execute('SELECT * FROM arcangel_users WHERE catalog_id=? AND user_id=? FOR UPDATE',[cat,id]);if(!u||u.blocked||u.deleted_at)throw fail(403,'Acceso desactivado.');return u;};
-  async function ready(db){const d=await device(db,true);if(!d?.enabled||!d.last_seen||Date.now()-Number(d.last_seen)>180000)throw fail(503,'Yape automático no está disponible ahora. Usa la revisión manual.');return d;}
+  async function ready(db){const d=await device(db,true);if(!d?.enabled||!d.last_seen||Date.now()-Number(d.last_seen)>YAPE_HEARTBEAT_STALE_MS)throw fail(503,'Yape automático no está disponible ahora. Usa la revisión manual.');return d;}
   async function claim(db,id,userId){const [[row]]=await db.execute('SELECT * FROM arcangel_yape_claims WHERE catalog_id=? AND claim_id=? AND user_id=? FOR UPDATE',[cat,requestId(id),userId]);if(!row)throw fail(404,'Solicitud no encontrada.');return row;}
   async function finish(db,row,status,eventId=null,note=''){
     await db.execute('UPDATE arcangel_yape_claims SET status=?,event_id=? WHERE claim_id=?',[status,eventId,row.claim_id]);
     await db.execute('UPDATE arcangel_ledger SET status=?,note=? WHERE catalog_id=? AND entry_id=?',[status,note,cat,row.claim_id]);return view({...row,status});
   }
   return {
-    async publicStatus(){const d=await device();return {enabled:!!d?.enabled,online:!!d?.last_seen&&Date.now()-Number(d.last_seen)<180000};},
-    async status(){const d=await device();return {catalog_id:cat,device_id:d?.device_id||'',paired:!!d,enabled:!!d?.enabled,online:!!d?.last_seen&&Date.now()-Number(d.last_seen)<180000,last_seen:d?.last_seen?Number(d.last_seen):null,last_payment:d?.last_payment?Number(d.last_payment):null,phone:d?.phone||'',max_soles:100};},
+    async publicStatus(){const d=await device();return {enabled:!!d?.enabled,online:!!d?.last_seen&&Date.now()-Number(d.last_seen)<YAPE_HEARTBEAT_STALE_MS};},
+    async status(){const d=await device();return {catalog_id:cat,device_id:d?.device_id||'',paired:!!d,enabled:!!d?.enabled,online:!!d?.last_seen&&Date.now()-Number(d.last_seen)<YAPE_HEARTBEAT_STALE_MS,last_seen:d?.last_seen?Number(d.last_seen):null,last_payment:d?.last_payment?Number(d.last_payment):null,phone:d?.phone||'',max_soles:100};},
     async pair(phone){
       if(typeof phone!=='string'||!/^9\d{8}$/.test(phone))throw fail(400,'Escribe los 9 dígitos del número que recibe los yapeos.');
       const id=randomUUID(),secret=secretToken();
@@ -65,7 +68,7 @@ export async function createYapeStore({pool,transaction,catalogId:cat,sealer}){
         return {released:true};
       });
     },
-    async enable(enabled){if(typeof enabled!=='boolean')throw fail(400,'Estado no válido.');return transaction(async db=>{const d=await device(db,true);if(!d)throw fail(409,'Vincula primero la app.');if(enabled&&(!d.last_payment||!d.last_seen||Date.now()-Number(d.last_seen)>180000))throw fail(409,'Primero recibe una notificación de pago reconocida en la app y comprueba el importe en Yape.');await db.execute('UPDATE arcangel_yape_devices SET enabled=? WHERE catalog_id=?',[enabled,cat]);return {enabled};});},
+    async enable(enabled){if(typeof enabled!=='boolean')throw fail(400,'Estado no válido.');return transaction(async db=>{const d=await device(db,true);if(!d)throw fail(409,'Vincula primero la app.');if(enabled&&(!d.last_payment||!d.last_seen||Date.now()-Number(d.last_seen)>YAPE_HEARTBEAT_STALE_MS))throw fail(409,'Primero recibe una notificación de pago reconocida en la app y comprueba el importe en Yape.');await db.execute('UPDATE arcangel_yape_devices SET enabled=? WHERE catalog_id=?',[enabled,cat]);return {enabled};});},
     async receive(headers,raw){
       const d=await device(),ts=headers['x-yape-time'],nonce=headers['x-yape-nonce'],sig=headers['x-yape-signature'];
       if(!d||headers['x-yape-device']!==d.device_id||!/^\d{13}$/.test(ts||'')||Math.abs(Date.now()-Number(ts))>300000||!/^[a-f0-9-]{36}$/.test(nonce||'')||!/^[a-f0-9]{64}$/.test(sig||''))throw fail(401,'Conexión no autorizada.');
