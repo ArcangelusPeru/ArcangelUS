@@ -40,6 +40,10 @@
     async function run(action){if(working||!online)return;working=true;box.querySelectorAll('button').forEach(b=>b.disabled=true);try{await action();}catch(error){if(error.status===400||error.status===409){draft=null;try{sessionStorage.removeItem(draftKey);}catch{}}box.querySelector('[role=status]').textContent=error.message;}finally{working=false;box.querySelectorAll('button').forEach(b=>b.disabled=!online&&!b.hasAttribute('data-check'));}}
     async function load(){try{const result=await api('yape/current');if(current!==generation)return;claim=result.claim;online=result.online&&result.enabled;draw();}catch(error){box.textContent=error.message;}}
     await load();
+    // Keep the badge synchronized while the account page remains open. The
+    // server is authoritative; this only avoids waiting for a manual refresh.
+    const statusTimer=setInterval(()=>{if(!document.hidden&&!working)load();},15000);
+    window.addEventListener('pagehide',()=>clearInterval(statusTimer),{once:true});
   });
 })();
 
