@@ -75,8 +75,27 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
   const userLock=async(db,id)=>{const rows=await query(db,'SELECT * FROM arcangel_users WHERE catalog_id=? AND user_id=? FOR UPDATE',[id]);if(!rows.length)throw fail(401,'Inicia sesión de nuevo.');return rows[0];};
   const profile=user=>({id:user.user_id,avatar_url:user.avatar_data||'',username:user.username||'',email:user.email,balance_cents:Number(user.balance_cents),blocked:!!user.blocked,role:user.role==='reseller'?'reseller':'customer'});
   const duplicate=error=>{if(error.code==='ER_DUP_ENTRY')throw fail(409,'Este registro ya existe. No se guardó un duplicado.');throw error;};
-  const session=async(db,user)=>{const token=secretToken();await query(db,'DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND (expires_at<NOW() OR user_id=?)',[user.user_id]);await query(db,'INSERT INTO arcangel_user_sessions(catalog_id,token_hash,user_id,expires_at) VALUES(?,?,?,DATE_ADD(NOW(),INTERVAL 7 DAY))',[digest(token),user.user_id]);return {token,user:profile(user)};};
-  const userByToken=async token=>{if(!/^[a-f0-9]{64}$/.test(token||''))return null;const [user]=await query(pool,'SELECT u.* FROM arcangel_users u JOIN arcangel_user_sessions s ON s.catalog_id=u.catalog_id AND s.user_id=u.user_id WHERE u.catalog_id=? AND s.token_hash=? AND s.expires_at>NOW() AND u.blocked=FALSE AND u.deleted_at IS NULL',[digest(token)]);return user||null;};
+  const session=async(db,user)=>{
+    const token=secretToken(),tokenHash=digest(token);
+    await query(db,'DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND expires_at<NOW()');
+    await query(db,'INSERT INTO arcangel_user_sessions(catalog_id,token_hash,user_id,expires_at) VALUES(?,?,?,DATE_ADD(NOW(),INTERVAL 7 DAY))',[tokenHash,user.user_id]);
+    // Permit the same account on the web and app. Keep the current session and
+    // the four most recent additional devices, removing only older sessions.
+    const rows=await query(db,'SELECT token_hash FROM arcangel_user_sessions WHERE catalog_id=? AND user_id=? ORDER BY expires_at DESC,token_hash DESC',[user.user_id]);
+    const stale=rows.filter(row=>row.token_hash!==tokenHash).slice(4);
+    if(stale.length)await query(db,`DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND user_id=? AND token_hash IN (${stale.map(()=>'?').join(',')})`,[user.user_id,...stale.map(row=>row.token_hash)]);
+    return {token,user:profile(user)};
+  };
+  const userByToken=async token=>{
+    if(!/^[a-f0-9]{64}$/.test(token||''))return null;
+    const tokenHash=digest(token);
+    const [user]=await query(pool,'SELECT u.*,s.expires_at AS session_expires_at FROM arcangel_users u JOIN arcangel_user_sessions s ON s.catalog_id=u.catalog_id AND s.user_id=u.user_id WHERE u.catalog_id=? AND s.token_hash=? AND s.expires_at>NOW() AND u.blocked=FALSE AND u.deleted_at IS NULL',[tokenHash]);
+    if(!user)return null;
+    // Renew an active session at most once per day so normal use keeps it open
+    // without turning every request into a database write.
+    if(new Date(user.session_expires_at).getTime()<Date.now()+6*86400000)await query(pool,'UPDATE arcangel_user_sessions SET expires_at=DATE_ADD(NOW(),INTERVAL 7 DAY) WHERE catalog_id=? AND token_hash=?',[tokenHash]);
+    delete user.session_expires_at;return user;
+  };
   async function stock(db,snapshot){
     const counts=await query(db,"SELECT product_id,COUNT(*) AS units FROM arcangel_inventory WHERE catalog_id=? AND state='available' GROUP BY product_id");
     const units=new Map(counts.map(row=>[row.product_id,Number(row.units)]));

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { databaseConfig } from './mysql-store.mjs';
 import { mercadoConfig } from './mercado-pago.mjs';
 
@@ -17,16 +17,22 @@ export function createAdminAccess({hosted=false,adminPassword='',publicOrigin=''
   let origin;
   if(publicOrigin){try{origin=new URL(publicOrigin);}catch{throw Error('APP_URL no es válida. Usa la URL pública completa o elimina esa variable.');}if(!['http:','https:'].includes(origin.protocol)||origin.username||origin.password)throw Error('APP_URL debe ser la URL pública de la tienda.');}
   const passwordHash=createHash('sha256').update(adminPassword).digest();
-  const localToken=randomBytes(32).toString('hex'),sessions=new Map(),attempts=new Map();
+  const localToken=randomBytes(32).toString('hex'),revoked=new Map(),attempts=new Map();
   const lifetime=12*60*60*1000;
   const digest=value=>createHash('sha256').update(value).digest('hex');
+  const sign=value=>createHmac('sha256',passwordHash).update(value).digest('hex');
   const tokenEquals=(a,b)=>{const one=Buffer.from(a||''),two=Buffer.from(b||'');return one.length===two.length&&timingSafeEqual(one,two);};
   const cookieValue=req=>String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('arcangel_admin='))?.slice(15)||'';
+  const decode=value=>{
+    const match=/^([a-z0-9]+)\.([a-f0-9]{64})\.([a-f0-9]{64})$/.exec(value||'');if(!match)return null;
+    const expires=parseInt(match[1],36),payload=match[1]+'.'+match[2];
+    if(!Number.isSafeInteger(expires)||expires<=Date.now()||!tokenEquals(match[3],sign(payload))||revoked.has(digest(value)))return null;
+    return {token:sign('csrf:'+value),expires};
+  };
   const session=req=>{
     if(!hosted)return {token:localToken};
-    const key=digest(cookieValue(req)),value=sessions.get(key);
-    if(value&&value.expires>Date.now())return value;
-    sessions.delete(key);return null;
+    const now=Date.now();for(const [key,expires] of revoked)if(expires<=now)revoked.delete(key);
+    return decode(cookieValue(req));
   };
   const sameOrigin=req=>{
     if(!req.headers.origin||req.headers['sec-fetch-site']==='cross-site')return false;
@@ -59,7 +65,6 @@ export function createAdminAccess({hosted=false,adminPassword='',publicOrigin=''
       if(!sameOrigin(req))throw Object.assign(Error('Origen no permitido.'),{status:403});
       const now=Date.now();
       for(const [key,value] of attempts)if(value.until<=now)attempts.delete(key);
-      for(const [key,value] of sessions)if(value.expires<=now)sessions.delete(key);
       // Use the connection address: untrusted forwarded headers cannot reset the limit.
       const client=req.socket.remoteAddress||'unknown';
       const count=attempts.get(client)||{count:0,until:now+15*60*1000};
@@ -67,12 +72,11 @@ export function createAdminAccess({hosted=false,adminPassword='',publicOrigin=''
       const supplied=createHash('sha256').update(typeof password==='string'?password:'').digest();
       if(!timingSafeEqual(supplied,passwordHash)){count.count++;attempts.set(client,count);throw Object.assign(Error('La contraseña no es correcta.'),{status:401});}
       attempts.delete(client);
-      const previous=cookieValue(req);if(previous)sessions.delete(digest(previous));
-      if(sessions.size>=100)sessions.delete(sessions.keys().next().value);
-      const id=randomBytes(32).toString('hex'),value={token:randomBytes(32).toString('hex'),expires:now+lifetime};
-      sessions.set(digest(id),value);setCookie(req,res,id,lifetime/1000);
+      const previous=cookieValue(req),previousSession=decode(previous);if(previousSession)revoked.set(digest(previous),previousSession.expires);
+      const expires=now+lifetime,payload=expires.toString(36)+'.'+randomBytes(32).toString('hex'),id=payload+'.'+sign(payload);
+      setCookie(req,res,id,lifetime/1000);
       return {authenticated:true};
     },
-    logout(req,res){this.checkWrite(req);sessions.delete(digest(cookieValue(req)));setCookie(req,res,'',0);return {authenticated:false};}
+    logout(req,res){const value=this.checkWrite(req),raw=cookieValue(req);revoked.set(digest(raw),value.expires);setCookie(req,res,'',0);return {authenticated:false};}
   };
 }
