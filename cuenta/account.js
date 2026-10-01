@@ -293,7 +293,7 @@
         </dl></section>
         ${a?`<section class="order-detail-section"><h3>Credenciales de la cuenta asignada</h3>${credential('username','Correo / usuario',a.username,'mail')}${a.has_password?credential('password','Contraseña','','key',true):'<p class="order-detail-note">Esta cuenta no tiene una contraseña asignada.</p>'}</section>
         <section class="order-detail-section"><h3>Perfil asignado</h3>${credential('profile','Nombre del perfil',a.profile,'user')}${credential('pin','PIN del perfil',a.pin,'key')}</section>
-        ${a.notes||a.url?`<section class="order-detail-section"><h3>Información adicional</h3>${a.notes?`<p class="order-detail-note">${esc(a.notes)}</p>`:''}${a.url?`<a class="order-platform-link" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${icon(deviceIcon(item.device))} Abrir plataforma ↗</a>`:''}</section>`:''}
+        ${a.notes||a.url?`<section class="order-detail-section"><h3>Información adicional</h3>${a.notes?`<p class="order-detail-note">${esc(a.notes)}</p>`:''}${a.url?`<a class="order-platform-link" href="${esc(a.url)}" target="_blank" rel="noopener noreferrer">${icon('device')} Abrir plataforma ↗</a>`:''}</section>`:''}
         <button type="button" class="order-copy-all" id="copyAllOrderData">${icon('copy')} Copiar toda la información</button>`:`<p class="order-detail-note">${o.status==='pending_manual'?'La tienda está preparando tu entrega. Los datos estarán disponibles aquí.':'El importe de esta compra fue devuelto a tu billetera.'}</p>`}
         <p class="order-copy-status" role="status" aria-live="polite"></p><div class="order-detail-actions"></div>`;
       box.querySelector('img').onerror=e=>{e.target.hidden=true;};
