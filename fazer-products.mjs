@@ -13,6 +13,16 @@ export function productCover(kind,...records){
  return '';
 }
 const groups={topups:['recargas-juegos','fazer-topups.svg'],giftcards:['tarjetas-regalo','fazer-giftcards.svg'],gamekeys:['claves-juegos','fazer-gamekeys.svg']};
+const regionLabels={latam:'Latinoamérica (LATAM)',global:'Global',worldwide:'Global',cis:'CIS',row:'Resto del mundo',asia:'Asia',mena:'Oriente Medio y África del Norte',ru:'Rusia',br:'Brasil'};
+export function providerRegion(...values){
+ for(const value of values){
+  const text=String(value||'').trim();
+  const explicit=text.match(/[([{]\s*(LATAM|LATIN AMERICA|GLOBAL|WORLDWIDE|CIS|ROW|ASIA|MENA|RU|BR)\s*[)\]}]/i);
+  const token=explicit?.[1]||text.match(/(?:^|[_-])(latam|global|worldwide|cis|row|asia|mena|ru|br)(?:$|[_-])/i)?.[1];
+  if(token)return regionLabels[token.toLowerCase()]||token.toUpperCase();
+ }
+ return '';
+}
 export function publicationInput(input){
  if(!Object.hasOwn(groups,input.kind))throw fail(400,'Selecciona un servicio válido.');
  for(const key of ['category_id','offer_id'])if(typeof input[key]!=='string'||!input[key]||input[key].length>200)throw fail(400,'Selecciona un producto del proveedor.');
@@ -23,7 +33,7 @@ export function publicationInput(input){
 export const publicationId=input=>'fz-'+createHash('sha256').update(JSON.stringify([input.kind,input.category_id,input.offer_id])).digest('hex').slice(0,32);
 export function publicFazerProduct(row,role){
  const [filter,icon]=groups[row.kind];
- return {id:row.product_id,provider_category_id:row.category_id,provider_offer_id:row.offer_id,filter,name:row.name,brand:row.category_name,sub:row.category_name,type:'Producto digital',duration:'',pen:role?Number(role==='reseller'?row.reseller_cents:row.client_cents)/100:null,original_pen:null,banner_url:providerImage(row.image_url)||'logo/'+icon,logo_url:'logo/'+icon,features:[],description:row.description||'',note:'La entrega se confirma en Mis compras digitales.',sort_order:1000,cat_sort_order:0,palette:'red',active:true,checkout_mode:'provider',whatsapp_enabled:false};
+ return {id:row.product_id,provider_category_id:row.category_id,provider_offer_id:row.offer_id,filter,name:row.name,brand:row.category_name,region:providerRegion(row.category_id,row.name,row.category_name),sub:row.category_name,type:'Producto digital',duration:'',pen:role?Number(role==='reseller'?row.reseller_cents:row.client_cents)/100:null,original_pen:null,banner_url:providerImage(row.image_url)||'logo/'+icon,logo_url:'logo/'+icon,features:[],description:row.description||'',note:'La entrega se confirma en Mis compras digitales.',sort_order:1000,cat_sort_order:0,palette:'red',active:true,checkout_mode:'provider',whatsapp_enabled:false};
 }
 export async function createFazerProducts({pool,cat,client,exchangeRate}){
  await pool.query(`CREATE TABLE IF NOT EXISTS arcangel_fazer_products(catalog_id VARCHAR(48) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,product_id VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,kind VARCHAR(20) NOT NULL,category_id VARCHAR(200) NOT NULL,offer_id VARCHAR(200) NOT NULL,name VARCHAR(300) NOT NULL,category_name VARCHAR(300) NOT NULL,description TEXT NOT NULL,client_cents BIGINT NOT NULL,reseller_cents BIGINT NOT NULL,cost_usd DECIMAL(16,6) NOT NULL,published BOOLEAN NOT NULL DEFAULT FALSE,PRIMARY KEY(catalog_id,product_id)) ENGINE=InnoDB`);
