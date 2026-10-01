@@ -232,12 +232,18 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
         if(await routeCommerce(req,res,url,send))return;
         if(req.method==='GET'&&url.pathname==='/api/catalog')return send(200,await publicState(req));
         if(req.method==='GET'&&url.pathname==='/api/admin/session')return send(200,access.status(req));
+        if(req.method==='GET'&&url.pathname==='/api/admin/devices')return send(200,access.devices(req));
         if(req.method==='POST'&&url.pathname==='/api/admin/login'){
           if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'Formato no válido.');
           let input;try{input=JSON.parse((await body(req,4096)).toString());}catch(e){if(e.status)throw e;throw fail(400,'Datos de acceso no válidos.');}
           return send(200,access.login(req,res,input.password));
         }
         if(req.method==='POST'&&url.pathname==='/api/admin/logout')return send(200,access.logout(req,res));
+        if(req.method==='POST'&&url.pathname==='/api/admin/devices/revoke'){
+          if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'Formato no válido.');
+          let input;try{input=JSON.parse((await body(req,4096)).toString());}catch(e){if(e.status)throw e;throw fail(400,'Datos no válidos.');}
+          return send(200,access.revokeDevice(req,input.session_id));
+        }
         if(req.method==='GET'&&url.pathname==='/api/admin/state'){const {token}=access.require(req);return send(200,{...await requiredState(),token});}
         if(req.method==='GET'&&url.pathname==='/api/admin/storage'){
           const {token}=access.require(req),saved=await readState();

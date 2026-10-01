@@ -2,13 +2,25 @@ import { fail, email, username, text, equalSecret } from './commerce-security.mj
 
 export const customerToken=(req,cat)=>String(req.headers.cookie||'').split(';').map(s=>s.trim()).find(s=>s.startsWith('arcangel_user_'+cat+'='))?.slice(('arcangel_user_'+cat+'=').length)||'';
 
+const requestMeta=req=>{
+  const forwarded=String(req.headers['x-forwarded-for']||'').split(',')[0].trim();
+  const rawIp=forwarded||String(req.headers['x-real-ip']||req.socket.remoteAddress||'').trim();
+  const ip=rawIp.replace(/^::ffff:/,'').slice(0,64)||'No disponible';
+  const ua=String(req.headers['user-agent']||'').slice(0,220);
+  const device=/iPad/i.test(ua)?'iPad':/iPhone/i.test(ua)?'iPhone':/Android/i.test(ua)&&/Mobile/i.test(ua)?'Android · móvil':/Android/i.test(ua)?'Android · tablet':/Windows/i.test(ua)?'Windows · navegador':/Macintosh/i.test(ua)?'macOS · navegador':/Linux/i.test(ua)?'Linux · navegador':'Navegador web';
+  const country=String(req.headers['cf-ipcountry']||req.headers['x-country']||req.headers['x-vercel-ip-country']||'').trim().toUpperCase();
+  const region=String(req.headers['x-region']||req.headers['x-vercel-ip-country-region']||'').trim();
+  const location=country?(region?`${country} · ${region}`:country):'Ubicación no disponible';
+  return {device,ip,location};
+};
+
 export function commerceRouter({store,access,sealer,readState,body,hosted,publicOrigin,payments}){
   const commerce=store?.commerce,cat=store?.catalogId||'local',cookieName='arcangel_user_'+cat;
   const cookie=req=>customerToken(req,cat);
   const csrf=raw=>sealer.mac(`${cat}:csrf:${raw}`);
   const setCookie=(req,res,raw,age=7*86400)=>{const secure=hosted&&(publicOrigin?publicOrigin.startsWith('https:'):req.socket.encrypted||String(req.headers['x-forwarded-proto']||'').split(',')[0].trim()==='https'),flags=`HttpOnly; SameSite=Strict${secure?'; Secure':''}`;res.setHeader('Set-Cookie',[`${cookieName}=${raw}; Path=/; ${flags}; Max-Age=${age}`,`${cookieName}=; Path=/api/shop; ${flags}; Max-Age=0`]);};
   async function input(req,limit=128*1024){if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'Envía los datos como JSON.');let result;try{result=JSON.parse((await body(req,limit)).toString());}catch(error){if(error.status)throw error;throw fail(400,'Datos no válidos.');}if(!result||typeof result!=='object'||Array.isArray(result))throw fail(400,'Datos no válidos.');return result;}
-  const requireUser=async req=>{const user=await commerce.userFromToken(cookie(req));if(!user)throw fail(401,'Inicia sesión para continuar.');return user;};
+  const requireUser=async req=>{const user=await commerce.userFromToken(cookie(req),requestMeta(req));if(!user)throw fail(401,'Inicia sesión para continuar.');return user;};
   return async(req,res,url,send)=>{
     if(url.pathname==='/api/yape/device'){
       if(!commerce)throw fail(503,'Las ventas no están configuradas.');
@@ -101,6 +113,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
     if(req.method==='GET'){
       const user=await requireUser(req);
       if(['/api/shop/session','/api/shop/me'].includes(url.pathname))setCookie(req,res,cookie(req));
+      if(url.pathname==='/api/shop/devices')return done(200,{items:await commerce.devices(user.id,cookie(req))});
       if(url.pathname==='/api/shop/digital/orders')return done(200,{items:await commerce.fazer.orders.list(user.id)});
       if(url.pathname==='/api/shop/digital/quote')return done(200,await commerce.fazer.orders.quote(url.searchParams.get('product_id'),user));
       if(url.pathname==='/api/shop/session')return done(200,{user,csrf:csrf(cookie(req))});
@@ -120,7 +133,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       await commerce.limit(`connection:${req.socket.remoteAddress}`,150);
       if(action==='register')await commerce.limit('registrations',30,3600);
       if(!await readState())throw fail(503,'La tienda todavía no está configurada.');
-      const result=action==='register'?await commerce.register(data.username,address,data.password):action==='recover'?await commerce.recover(address,data.recovery_code,data.password):await commerce.login(data.identifier||data.email,data.password);
+      const meta=requestMeta(req),result=action==='register'?await commerce.register(data.username,address,data.password,meta):action==='recover'?await commerce.recover(address,data.recovery_code,data.password):await commerce.login(data.identifier||data.email,data.password,meta);
       setCookie(req,res,result.token);return done(action==='register'?201:200,{user:result.user,csrf:csrf(result.token),...(result.recovery_code?{recovery_code:result.recovery_code}:{})});
     }
     const user=await requireUser(req);if(!equalSecret(req.headers['x-shop-csrf'],csrf(cookie(req))))throw fail(403,'Recarga tu cuenta para continuar.');
@@ -134,6 +147,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
         await commerce.limit('yape-check:'+user.id,9,3600);
         return done(200,await commerce.yape.verify(user.id,data));
       case '/api/shop/profile/avatar':await commerce.limit('avatar:'+user.id,20,3600);return done(200,await commerce.setAvatar(user.id,data.avatar));
+      case '/api/shop/devices/revoke':return done(200,await commerce.revokeDevice(user.id,data.session_id));
       case '/api/shop/logout':await commerce.logout(cookie(req));setCookie(req,res,'',0);return done(200,{ok:true});
       case '/api/shop/topups':return done(201,await commerce.topup(user.id,data));
       case '/api/shop/mercadopago/create':

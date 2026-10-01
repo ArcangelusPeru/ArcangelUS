@@ -16,7 +16,7 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
   for(const ddl of [
     `arcangel_commerce_meta (${catalog},document TEXT NOT NULL,PRIMARY KEY(catalog_id))`,
     `arcangel_users (${catalog},user_id ${uuid} NOT NULL,username VARCHAR(40) CHARACTER SET ascii COLLATE ascii_bin NULL,email VARCHAR(254) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,password_hash VARCHAR(220) NOT NULL,recovery_hash CHAR(64) NOT NULL,balance_cents BIGINT UNSIGNED NOT NULL DEFAULT 0,blocked BOOLEAN NOT NULL DEFAULT FALSE,role VARCHAR(16) NOT NULL DEFAULT 'customer',created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(catalog_id,user_id),UNIQUE KEY email_unique(catalog_id,email),UNIQUE KEY username_unique(catalog_id,username))`,
-    `arcangel_user_sessions (${catalog},token_hash CHAR(64) NOT NULL,user_id ${uuid} NOT NULL,expires_at DATETIME NOT NULL,PRIMARY KEY(catalog_id,token_hash),KEY user_sessions(catalog_id,user_id))`,
+    `arcangel_user_sessions (${catalog},token_hash CHAR(64) NOT NULL,user_id ${uuid} NOT NULL,expires_at DATETIME NOT NULL,device_label VARCHAR(160) NOT NULL DEFAULT 'Dispositivo desconocido',ip_address VARCHAR(64) NOT NULL DEFAULT '',location VARCHAR(160) NOT NULL DEFAULT 'Ubicación no disponible',created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,last_seen_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(catalog_id,token_hash),KEY user_sessions(catalog_id,user_id))`,
     `arcangel_auth_limits (${catalog},bucket CHAR(64) NOT NULL,hits INT NOT NULL,expires_at BIGINT NOT NULL,PRIMARY KEY(catalog_id,bucket))`,
     `arcangel_inventory_batches (${catalog},batch_id ${uuid} NOT NULL,fingerprint CHAR(64) NOT NULL,units INT NOT NULL,PRIMARY KEY(catalog_id,batch_id))`,
     `arcangel_ledger (${catalog},entry_id ${uuid} NOT NULL,user_id ${uuid} NOT NULL,order_id ${uuid} NULL,kind VARCHAR(32) NOT NULL,amount_cents BIGINT NOT NULL,status VARCHAR(24) NOT NULL,reference VARCHAR(120) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,note VARCHAR(1000) NOT NULL DEFAULT '',created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(catalog_id,entry_id),UNIQUE KEY reference_unique(catalog_id,reference),KEY ledger_user(catalog_id,user_id,created_at),KEY ledger_order(catalog_id,order_id,kind,status))`,
@@ -25,6 +25,10 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
     `arcangel_reports (${catalog},report_id ${uuid} NOT NULL,user_id ${uuid} NOT NULL,order_id ${uuid} NOT NULL,message TEXT NOT NULL,status VARCHAR(20) NOT NULL DEFAULT 'open',owner_reply TEXT NOT NULL,revision INT UNSIGNED NOT NULL DEFAULT 1,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,PRIMARY KEY(catalog_id,report_id),KEY reports_order(catalog_id,order_id),KEY reports_user(catalog_id,user_id,created_at))`,
     `arcangel_replacements (${catalog},replacement_id ${uuid} NOT NULL,order_id ${uuid} NOT NULL,user_id ${uuid} NOT NULL,product_id VARCHAR(100) NOT NULL,old_inventory_id ${uuid} NOT NULL,new_inventory_id ${uuid} NOT NULL,old_secret TEXT NOT NULL,new_secret TEXT NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(catalog_id,replacement_id),UNIQUE KEY replacement_order(catalog_id,order_id),KEY replacements_user(catalog_id,user_id,created_at))`,
   ])await pool.query(`CREATE TABLE IF NOT EXISTS ${ddl} ${common}`);
+  for(const [column,definition] of [['device_label',"VARCHAR(160) NOT NULL DEFAULT 'Dispositivo desconocido'"],['ip_address',"VARCHAR(64) NOT NULL DEFAULT ''"],['location',"VARCHAR(160) NOT NULL DEFAULT 'Ubicación no disponible'"],['created_at','DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP'],['last_seen_at','DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP']]){
+    const [exists]=await pool.query(`SHOW COLUMNS FROM arcangel_user_sessions LIKE '${column}'`);
+    if(!exists.length){try{await pool.query(`ALTER TABLE arcangel_user_sessions ADD COLUMN ${column} ${definition}`);}catch(error){if(error.code!=='ER_DUP_FIELDNAME')throw error;}}
+  }
   // Assign existing and future accounts an immutable, database-generated number.
   // The unique index is created in the same ALTER as the auto-increment column.
   const [accountNumberColumn]=await pool.query("SHOW COLUMNS FROM arcangel_inventory LIKE 'account_number'");
@@ -75,10 +79,10 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
   const userLock=async(db,id)=>{const rows=await query(db,'SELECT * FROM arcangel_users WHERE catalog_id=? AND user_id=? FOR UPDATE',[id]);if(!rows.length)throw fail(401,'Inicia sesión de nuevo.');return rows[0];};
   const profile=user=>({id:user.user_id,avatar_url:user.avatar_data||'',username:user.username||'',email:user.email,balance_cents:Number(user.balance_cents),blocked:!!user.blocked,role:user.role==='reseller'?'reseller':'customer'});
   const duplicate=error=>{if(error.code==='ER_DUP_ENTRY')throw fail(409,'Este registro ya existe. No se guardó un duplicado.');throw error;};
-  const session=async(db,user)=>{
+  const session=async(db,user,meta={})=>{
     const token=secretToken(),tokenHash=digest(token);
     await query(db,'DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND expires_at<NOW()');
-    await query(db,'INSERT INTO arcangel_user_sessions(catalog_id,token_hash,user_id,expires_at) VALUES(?,?,?,DATE_ADD(NOW(),INTERVAL 7 DAY))',[tokenHash,user.user_id]);
+    await query(db,'INSERT INTO arcangel_user_sessions(catalog_id,token_hash,user_id,expires_at,device_label,ip_address,location) VALUES(?,?,?,DATE_ADD(NOW(),INTERVAL 7 DAY),?,?,?)',[tokenHash,user.user_id,meta.device||'Dispositivo desconocido',meta.ip||'',meta.location||'Ubicación no disponible']);
     // Permit the same account on the web and app. Keep the current session and
     // the four most recent additional devices, removing only older sessions.
     const rows=await query(db,'SELECT token_hash FROM arcangel_user_sessions WHERE catalog_id=? AND user_id=? ORDER BY expires_at DESC,token_hash DESC',[user.user_id]);
@@ -86,14 +90,15 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
     if(stale.length)await query(db,`DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND user_id=? AND token_hash IN (${stale.map(()=>'?').join(',')})`,[user.user_id,...stale.map(row=>row.token_hash)]);
     return {token,user:profile(user)};
   };
-  const userByToken=async token=>{
+  const userByToken=async (token,meta={})=>{
     if(!/^[a-f0-9]{64}$/.test(token||''))return null;
     const tokenHash=digest(token);
-    const [user]=await query(pool,'SELECT u.*,s.expires_at AS session_expires_at FROM arcangel_users u JOIN arcangel_user_sessions s ON s.catalog_id=u.catalog_id AND s.user_id=u.user_id WHERE u.catalog_id=? AND s.token_hash=? AND s.expires_at>NOW() AND u.blocked=FALSE AND u.deleted_at IS NULL',[tokenHash]);
+    const [user]=await query(pool,'SELECT u.*,s.expires_at AS session_expires_at,s.last_seen_at,s.device_label,s.ip_address,s.location FROM arcangel_users u JOIN arcangel_user_sessions s ON s.catalog_id=u.catalog_id AND s.user_id=u.user_id WHERE u.catalog_id=? AND s.token_hash=? AND s.expires_at>NOW() AND u.blocked=FALSE AND u.deleted_at IS NULL',[tokenHash]);
     if(!user)return null;
     // Renew an active session at most once per day so normal use keeps it open
     // without turning every request into a database write.
     if(new Date(user.session_expires_at).getTime()<Date.now()+6*86400000)await query(pool,'UPDATE arcangel_user_sessions SET expires_at=DATE_ADD(NOW(),INTERVAL 7 DAY) WHERE catalog_id=? AND token_hash=?',[tokenHash]);
+    if(Date.now()-new Date(user.last_seen_at).getTime()>5*60*1000||meta.device&&meta.device!==user.device_label||meta.ip&&meta.ip!==user.ip_address||meta.location&&meta.location!==user.location)await query(pool,'UPDATE arcangel_user_sessions SET last_seen_at=NOW(),device_label=?,ip_address=?,location=? WHERE catalog_id=? AND token_hash=?',[meta.device||user.device_label||'Dispositivo desconocido',meta.ip||user.ip_address||'',meta.location||user.location||'Ubicación no disponible',cat,tokenHash]);
     delete user.session_expires_at;return user;
   };
   async function stock(db,snapshot){
@@ -147,11 +152,11 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
       if(hits>max)throw fail(429,'Demasiados intentos. Vuelve a intentarlo más tarde.');
       if(Math.random()<0.02)await query(pool,'DELETE FROM arcangel_auth_limits WHERE catalog_id=? AND expires_at<?',[now]);
     },
-    async register(handle,address,password){
+    async register(handle,address,password,meta){
       handle=username(handle);address=email(address);const passwordHash=await hashPassword(password),recovery=secretToken(),id=randomUUID();
       try{return await transaction(async db=>{
         await query(db,'INSERT INTO arcangel_users(catalog_id,user_id,username,email,password_hash,recovery_hash,recovery_secret,role) VALUES(?,?,?,?,?,?,?,\'customer\')',[id,handle,address,passwordHash,digest(recovery),sealer.seal(recovery,`${cat}:recovery:${id}`)]);
-        return {...await session(db,{user_id:id,username:handle,email:address,balance_cents:0,blocked:false,role:'customer'}),recovery_code:recovery};
+        return {...await session(db,{user_id:id,username:handle,email:address,balance_cents:0,blocked:false,role:'customer'},meta),recovery_code:recovery};
       });}catch(error){duplicate(error);}
     },
     async createCustomer(handle,address,password,role='customer'){
@@ -166,10 +171,10 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
       id=requestId(id);validatePassword(password);const passwordHash=await hashPassword(password),recovery=secretToken();
       return transaction(async db=>{const user=await userLock(db,id);if(user.deleted_at)throw fail(409,'Restaura primero al usuario desde Eliminados.');await db.execute('UPDATE arcangel_users SET password_hash=?,recovery_hash=?,recovery_secret=? WHERE catalog_id=? AND user_id=?',[passwordHash,digest(recovery),sealer.seal(recovery,`${cat}:recovery:${id}`),cat,id]);await query(db,'DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND user_id=?',[id]);return {updated:true};});
     },
-    async login(identifier,password){
+    async login(identifier,password,meta){
       const handle=text(identifier,'el usuario o correo',254);const lookup=handle.includes('@')?email(handle):username(handle);const [user]=await query(pool,'SELECT * FROM arcangel_users WHERE catalog_id=? AND (email=? OR username=?) LIMIT 1',[lookup,lookup]);
       const valid=await verifyPassword(password,user?.password_hash);if(!valid||!user||user.blocked||user.deleted_at)throw fail(401,'Usuario, correo o contraseña incorrectos, o acceso desactivado.');
-      return transaction(async db=>{const latest=await userLock(db,user.user_id);if(latest.blocked||latest.deleted_at||latest.password_hash!==user.password_hash)throw fail(401,'Inicia sesión de nuevo.');return session(db,latest);});
+      return transaction(async db=>{const latest=await userLock(db,user.user_id);if(latest.blocked||latest.deleted_at||latest.password_hash!==user.password_hash)throw fail(401,'Inicia sesión de nuevo.');return session(db,latest,meta);});
     },
     async recover(address,code,password){
       address=email(address);text(code,'el código de recuperación',64);
@@ -193,7 +198,17 @@ export async function createCommerceStore({pool,transaction,catalogId:cat,sealer
         return {user_id:id,email:user.email,blocked:!!user.blocked,recovery_code:code};
       });
     },
-    async userFromToken(token){const user=await userByToken(token);return user?profile(user):null;},
+    async userFromToken(token,meta){const user=await userByToken(token,meta);return user?profile(user):null;},
+    async devices(userId,currentToken){
+      const rows=await query(pool,'SELECT token_hash,device_label,ip_address,location,created_at,last_seen_at,expires_at FROM arcangel_user_sessions WHERE catalog_id=? AND user_id=? AND expires_at>NOW() ORDER BY last_seen_at DESC,created_at DESC',[userId]);
+      return rows.map(row=>({session_id:row.token_hash,device:row.device_label||'Dispositivo desconocido',ip:row.ip_address||'No disponible',location:row.location||'Ubicación no disponible',created_at:row.created_at,last_seen_at:row.last_seen_at,expires_at:row.expires_at,current:row.token_hash===digest(currentToken)}));
+    },
+    async revokeDevice(userId,sessionId){
+      if(!/^[a-f0-9]{64}$/.test(String(sessionId||'')))throw fail(400,'Dispositivo no válido.');
+      const result=await pool.execute('DELETE FROM arcangel_user_sessions WHERE catalog_id=? AND user_id=? AND token_hash=?',[cat,userId,sessionId]);
+      if(!result[0].affectedRows)throw fail(404,'La sesión ya no está conectada.');
+      return {revoked:true};
+    },
     async setAvatar(userId,avatar){
       if(typeof avatar!=='string'||avatar.length>180000)throw fail(400,'La foto es demasiado grande. Elige otra imagen.');
       if(avatar){
