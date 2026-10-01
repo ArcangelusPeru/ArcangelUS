@@ -620,7 +620,7 @@ a{color:inherit;text-decoration:none}
 .card:hover{transform:translateY(-5px);box-shadow:var(--shadow-lg),0 0 0 1px var(--border-hover);border-color:var(--border-hover)}
 .card:active{transform:translateY(-2px)}
 .card-banner{height:152px;position:relative;display:flex;align-items:flex-end;justify-content:space-between;padding:0 16px 14px;overflow:hidden}
-.card-banner-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:0;opacity:1;background:var(--surface-2);}
+.card-banner-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;z-index:0;opacity:1;background:var(--surface-2);}.card-banner-img.image-fallback{object-fit:contain;padding:22px;background:linear-gradient(135deg,#171321,#0c0d13);}
 .card-banner::after{content:'';position:absolute;inset:0;background:linear-gradient(105deg,transparent 40%,rgba(255,255,255,.06) 50%,transparent 60%);background-size:200% 100%;opacity:0;transition:opacity .3s}
 .card:hover .card-banner::after{opacity:1;animation:shimmer .7s ease forwards}
 @keyframes shimmer{from{background-position:200% 0}to{background-position:-200% 0}}
@@ -973,7 +973,7 @@ a{color:inherit;text-decoration:none}
 .search-box:focus-within{border-color:#ff6574;box-shadow:0 0 0 3px #ff465522;background:#260e1c}
 .search-box svg{color:#f2ced7}
 @media(max-width:600px){.filters-scroll>.filter-chip{width:98px;min-height:142px}.games-category-panel{grid-template-columns:repeat(3,78px);padding:14px;gap:12px 6px}.games-category-panel .filter-chip{width:78px}.search-box{min-width:0;height:48px}}
-#gamePackages{width:min(780px,94vw);max-height:88vh;overflow:auto;background:#13121b;color:#fff;border:1px solid #a83c50;border-radius:20px;padding:26px}#gamePackages::backdrop{background:#000b;backdrop-filter:blur(5px)}#gamePackages header{display:flex;justify-content:space-between;align-items:center}#gamePackages header button{background:transparent;color:#fff;border:0;font-size:30px;cursor:pointer}.package-cover{width:100%;height:180px;object-fit:contain;background:#0c0d13;border-radius:12px}.package-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.package-option{padding:18px;border:1px solid #50313e;border-radius:12px;background:#21131b;color:#fff;display:grid;gap:12px;text-decoration:none}.package-option:hover{border-color:#ff5369;background:#401925}.package-option span{color:#ff7b89}@media(max-width:600px){.package-grid{grid-template-columns:repeat(2,1fr)}}
+#gamePackages{width:min(780px,94vw);max-height:88vh;overflow:auto;background:#13121b;color:#fff;border:1px solid #a83c50;border-radius:20px;padding:26px}#gamePackages::backdrop{background:#000b;backdrop-filter:blur(5px)}#gamePackages header{display:flex;justify-content:space-between;align-items:center}#gamePackages header button{background:transparent;color:#fff;border:0;font-size:30px;cursor:pointer}.package-cover{width:100%;height:180px;object-fit:contain;background:#0c0d13;border-radius:12px}.package-cover.image-fallback{padding:30px;background:linear-gradient(135deg,#171321,#0c0d13)}.package-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.package-option{padding:18px;border:1px solid #50313e;border-radius:12px;background:#21131b;color:#fff;display:grid;gap:12px;text-decoration:none}.package-option:hover{border-color:#ff5369;background:#401925}.package-option span{color:#ff7b89}@media(max-width:600px){.package-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 <link rel="stylesheet" href="css/arcangel.css?v=1.11.0">
 <link rel="stylesheet" href="css/sidebar-preserved.css?v=20260929-layout2">
@@ -1253,7 +1253,7 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opa
 <script src="js/shop-settings.js?v=1.11.0"></script>
 <script src="js/waves.js?v=1.11.0"></script>
 <script src="js/commerce.js?v=1.11.0"></script>
-<script src="js/game-packages.js?v=20260930-region3"></script><script src="js/index.js?v=20260930-region3"></script>
+<script src="js/game-packages.js?v=20260930-region4"></script><script src="js/index.js?v=20260930-region4"></script>
 
 <script>
 // ── LOGO PARTICLES ──
