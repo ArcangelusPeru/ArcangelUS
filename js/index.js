@@ -228,7 +228,7 @@ function renderAll() {
     </div>`
   : '';
 
-card.innerHTML = `
+    card.innerHTML = `
   <div class="card-banner" style="${bannerStyle}">${bannerImg}${discountBadge}${outOfStockOverlay}</div>
       <div class="card-body ${p.out_of_stock ? 'disabled' : ''}">
         <div class="card-name">${safeName}</div>
@@ -248,6 +248,16 @@ card.innerHTML = `
         </div>
       </div>
     `;
+    const cardImage = card.querySelector('.card-banner-img');
+    if (cardImage) {
+      // Algunas portadas externas dejan de existir o responden con error.
+      // Mantén la tarjeta siempre visible con el icono de su servicio.
+      cardImage.addEventListener('error', () => {
+        cardImage.onerror = null;
+        cardImage.src = p.logo_url || (p.filter === 'claves-juegos' ? 'logo/fazer-gamekeys.svg' : 'logo/fazer-topups.svg');
+        cardImage.classList.add('image-fallback');
+      }, { once: true });
+    }
     if(p.checkout_mode==='provider'){const providerTitle=p.filter==='recargas-juegos'?window.gameDisplayName(p):p.brand;const region=p.region?` · ${p.region}`:'';card.querySelector('.card-body').innerHTML='<button class="favorite-toggle" type="button" aria-label="Marcar favorito">'+(favoriteIds().includes(String(p.id))?'♥':'♡')+'</button><h3 class="card-title">'+escHtml(providerTitle+region)+'</h3><p>Recargas y paquetes disponibles</p><button class="card-btn">Ver paquetes →</button>';card.querySelector('.favorite-toggle').onclick=e=>{e.stopPropagation();toggleFavorite(p.id)};card.onclick=()=>window.openGamePackages(p,allProducts);card.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();window.openGamePackages(p,allProducts);}};gridEl.appendChild(card);return;}
     const purchases=document.createElement('div');purchases.className='card-purchase-options';
     const canBuy=['automatic','provider'].includes(p.checkout_mode)&&!p.out_of_stock; const showWhatsApp=p.whatsapp_enabled!==false;
