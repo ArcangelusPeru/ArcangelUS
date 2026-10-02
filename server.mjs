@@ -161,8 +161,23 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
         const historical=current.products
           .filter(p=>!ids.has(String(p.id)))
           .map(p=>({...p,active:false}));
+        // Las cuentas y ventas históricas pueden usar categorías que ya no
+        // aparecen en el catálogo nuevo. Consérvalas con un identificador
+        // interno único para que la validación no rompa esas referencias.
+        const categorySlugs=new Set(bundled.categories.map(c=>c.slug));
+        const categoryIds=new Set(bundled.categories.map(c=>String(c.id)));
+        const historicalCategories=[];
+        for(const category of current.categories){
+          if(categorySlugs.has(category.slug))continue;
+          let id=String(category.id);
+          if(categoryIds.has(id))id=`legacy-${category.slug}`;
+          for(let suffix=2;categoryIds.has(id);suffix++)id=`legacy-${category.slug}-${suffix}`;
+          categoryIds.add(id);categorySlugs.add(category.slug);
+          historicalCategories.push({...category,id});
+        }
         const next=validateState({...bundled,
           products:[...products,...historical],
+          categories:[...bundled.categories,...historicalCategories],
           settings:{...DEFAULT_SETTINGS,...bundled.settings,...current.settings,catalog_release:release},
         });
         await store.save(next,Number(current.revision));
@@ -170,7 +185,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       }
     }catch(error){console.error('[CATALOG_SYNC_FAILED]',error.message||error);}
   }
-  const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(await requiredState(),role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
+  const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(await requiredState(),role);const visibleCategories=new Set(result.products.map(p=>p.filter));result.categories=result.categories.filter(c=>visibleCategories.has(c.slug)||c.id.startsWith('fazer-'));if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
   // No bloquees el primer pintado esperando MySQL o FazerCards, pero tampoco
   // muestres el catálogo empaquetado de GitHub como si fuera el vigente. La
   // página arranca con una respuesta vacía y /api/catalog carga el catálogo
