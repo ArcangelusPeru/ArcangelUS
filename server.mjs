@@ -154,11 +154,6 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
     }catch(error){console.error('[CATALOG_RESTORE_FAILED]',error.message||error);}
   }
   const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(await requiredState(),role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
-  // No bloquees el primer pintado esperando MySQL o FazerCards, pero tampoco
-  // muestres el catálogo empaquetado de GitHub como si fuera el vigente. La
-  // página arranca con una respuesta vacía y /api/catalog carga el catálogo
-  // guardado en MySQL con la sesión correcta.
-  const bundledPublicCatalog=store?.commerce?{revision:0,settings:DEFAULT_SETTINGS,categories:[],products:[]}:null;
   const legacyFile=path.join(storageRoot,'catalog.json');
   const hasLegacy=()=>fs.access(legacyFile).then(()=>true,()=>false);
   async function getImage(relative){
@@ -298,7 +293,10 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(relative==='admin'||relative==='admin/')relative='admin/index.html';
       if(relative==='cuenta'||relative==='cuenta/')relative='cuenta/index.html';
       if(relative.toLowerCase()==='js/catalog.js'){
-        const visible=bundledPublicCatalog||await publicState(req);
+        // La portada recibe de inmediato el mismo catálogo guardado en MySQL
+        // que usa el panel. Así no depende de una segunda petición para poder
+        // mostrar productos y nunca utiliza el catálogo incluido en GitHub.
+        const visible=await publicState(req);
         // Este archivo contiene precios y canales según la cookie del cliente.
         // Nunca debe compartirse entre sesiones mediante un caché intermedio.
         res.writeHead(200,{'Content-Type':MIME['.js'],'Cache-Control':'private, no-store, max-age=0','Vary':'Cookie'});
