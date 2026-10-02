@@ -613,7 +613,10 @@ async function refreshCatalog() {
   try {
     // Añadir un nonce evita que un proxy/CDN reutilice el catálogo anónimo
     // entre navegadores o después de cambiar de usuario.
-    const response = await fetch(`/api/catalog?session_refresh=${Date.now()}`, { cache: 'no-store' });
+    const response = await fetch(`/api/catalog?session_refresh=${Date.now()}`, {
+      cache: 'no-store',
+      signal: AbortSignal.timeout(5000),
+    });
     if (!response.ok) {
       showCatalogError();
       return;
