@@ -141,12 +141,18 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
     try{
       const source=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));
       const bundled=validateState(source),current=await readState();
-      const legacyHosted=current?.products?.length===41&&
-        String(current.settings?.proof_count)==='950'&&
+      const legacyHosted=String(current?.settings?.proof_count)==='950'&&
         current.products.some(p=>p.name==='NETFLIX'&&Number(p.pen)===12)&&
         !current.products.some(p=>p.name==='Net Caarasco');
       if(current&&(Number(source.revision)>Number(current.revision)||legacyHosted)){
-        await store.save(bundled,Number(current.revision));
+        // No borres referencias usadas por inventario o ventas. Los productos
+        // antiguos que ya no están en el catálogo actual quedan ocultos y se
+        // conservan únicamente para mantener intacto el historial.
+        const ids=new Set(bundled.products.map(p=>String(p.id)));
+        const historical=legacyHosted?current.products
+          .filter(p=>!ids.has(String(p.id)))
+          .map(p=>({...p,active:false})):[];
+        await store.save({...bundled,products:[...bundled.products,...historical]},Number(current.revision));
         console.log(`[CATALOG_SYNC] MySQL actualizado desde la revisión ${current.revision}.`);
       }
     }catch(error){console.error('[CATALOG_SYNC_FAILED]',error.message||error);}
