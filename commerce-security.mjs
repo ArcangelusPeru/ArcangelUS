@@ -10,6 +10,12 @@ export function text(value,label,max=200,required=true){
 }
 export function email(value){const result=text(value,'el correo',254).toLowerCase();if(!/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(result))throw fail(400,'Escribe un correo válido.');return result;}
 export function username(value){const result=text(value,'el usuario',40).toLowerCase();if(!/^[a-z0-9][a-z0-9._-]{1,38}[a-z0-9]$/.test(result))throw fail(400,'El usuario debe tener entre 3 y 40 caracteres, empezar y terminar con una letra o número y solo usar letras, números, punto, guion o guion bajo.');return result;}
+export function phone(value){
+  const digits=String(value??'').replace(/\D/g,'');
+  const result=digits.startsWith('51')&&digits.length===11?digits.slice(2):digits;
+  if(!/^9\d{8}$/.test(result))throw fail(400,'Escribe un número celular peruano válido de 9 dígitos.');
+  return result;
+}
 export function cents(value){if(!Number.isSafeInteger(value)||value<1||value>100000000)throw fail(400,'El importe debe estar entre S/ 0.01 y S/ 1,000,000.');return value;}
 export function requestId(value){if(typeof value!=='string'||! /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value))throw fail(400,'Identificador de operación no válido. Recarga la página.');return value.toLowerCase();}
 export function soles(value){const valueText=String(value);if(!/^\d{1,7}(\.\d{1,2})?$/.test(valueText))throw fail(400,'Usa un importe con un máximo de dos decimales.');return cents(Math.round(Number(valueText)*100));}

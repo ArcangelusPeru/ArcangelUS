@@ -98,7 +98,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
         case '/api/admin/commerce/refund/quote':return done(200,await commerce.refundQuote(data.order_id));
         case '/api/admin/commerce/refund':return done(200,await commerce.refundOrder(data.order_id,data.revision));
         case '/api/admin/commerce/customer':return done(200,await commerce.blockUser(data.user_id,data.blocked));
-        case '/api/admin/commerce/customer/create':return done(201,await commerce.createCustomer(data.username,data.email,data.password,data.role));
+        case '/api/admin/commerce/customer/create':return done(201,await commerce.createCustomer(data.username,data.email,data.phone,data.password,data.role));
         case '/api/admin/commerce/customer/password':return done(200,await commerce.changeCustomerPassword(data.user_id,data.password));
         case '/api/admin/commerce/customer/balance':return done(200,await commerce.addCustomerBalance(data.user_id,data));
         case '/api/admin/commerce/customer/role':return done(200,await commerce.setCustomerRole(data.user_id,data.role,data.username));
@@ -133,7 +133,7 @@ export function commerceRouter({store,access,sealer,readState,body,hosted,public
       await commerce.limit(`connection:${req.socket.remoteAddress}`,150);
       if(action==='register')await commerce.limit('registrations',30,3600);
       if(!await readState())throw fail(503,'La tienda todavía no está configurada.');
-      const meta=requestMeta(req),result=action==='register'?await commerce.register(data.username,address,data.password,meta):action==='recover'?await commerce.recover(address,data.recovery_code,data.password):await commerce.login(data.identifier||data.email,data.password,meta);
+      const meta=requestMeta(req),result=action==='register'?await commerce.register(data.username,address,data.phone,data.password,meta):action==='recover'?await commerce.recover(address,data.recovery_code,data.password):await commerce.login(data.identifier||data.email,data.password,meta);
       setCookie(req,res,result.token);return done(action==='register'?201:200,{user:result.user,csrf:csrf(result.token),...(result.recovery_code?{recovery_code:result.recovery_code}:{})});
     }
     const user=await requireUser(req);if(!equalSecret(req.headers['x-shop-csrf'],csrf(cookie(req))))throw fail(403,'Recarga tu cuenta para continuar.');
