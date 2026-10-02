@@ -69,12 +69,12 @@ function getPriorityCardImageLimit() {
 }
 
 function getCardImageAttrs(index) {
-  // El catálogo tiene tarjetas compactas y varias pueden quedar visibles al
-  // mismo tiempo. Lazy loading deja banners vacíos hasta que el puntero pasa
-  // por encima en algunos navegadores, porque ese gesto fuerza su carga.
-  // Cárgalos desde el primer render para que la tarjeta sea estable.
-  const fetchPriority = index < 4 ? 'high' : 'auto';
-  return `loading="eager" decoding="async" fetchpriority="${fetchPriority}"`;
+  // Carga de inmediato solo las tarjetas que pueden aparecer en la primera
+  // pantalla. El resto se descarga al acercarse durante el desplazamiento.
+  // Así el celular no compite por las 41 imágenes al abrir la tienda.
+  const eager = index < getPriorityCardImageLimit();
+  const fetchPriority = index < 2 ? 'high' : 'auto';
+  return `loading="${eager ? 'eager' : 'lazy'}" decoding="async" fetchpriority="${fetchPriority}"`;
 }
 
 function preloadImage(url, fetchPriority = 'auto') {
