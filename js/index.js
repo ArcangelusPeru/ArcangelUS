@@ -137,6 +137,7 @@ function productStockBadge(product) {
 }
 
 function showSkeletons(n) {
+  gridEl.setAttribute('aria-busy', 'true');
   gridEl.innerHTML = Array(n).fill(`
     <div class="skeleton">
       <div class="skeleton-banner"></div>
@@ -147,6 +148,28 @@ function showSkeletons(n) {
       </div>
     </div>
   `).join('');
+}
+
+function showCatalogLoading() {
+  if (!gridEl || !countEl) return;
+  countEl.textContent = 'Cargando…';
+  showSkeletons(6);
+}
+
+function showCatalogError() {
+  if (!gridEl || !countEl || allProducts.length) return;
+  countEl.textContent = 'No disponible';
+  gridEl.removeAttribute('aria-busy');
+  gridEl.innerHTML = `<div class="empty show catalog-load-error">
+    <div class="empty-icon" aria-hidden="true">⚠️</div>
+    <h3>No se pudieron cargar los productos</h3>
+    <p>Comprueba tu conexión y vuelve a intentarlo.</p>
+    <button class="card-btn catalog-retry" type="button">Reintentar</button>
+  </div>`;
+  gridEl.querySelector('.catalog-retry')?.addEventListener('click', () => {
+    showCatalogLoading();
+    refreshCatalog();
+  }, { once: true });
 }
 
 function renderAll() {
@@ -169,6 +192,7 @@ function renderAll() {
     });
   }
 
+  gridEl.removeAttribute('aria-busy');
   gridEl.innerHTML = '';
   countEl.textContent = list.length;
 
@@ -590,7 +614,10 @@ async function refreshCatalog() {
     // Añadir un nonce evita que un proxy/CDN reutilice el catálogo anónimo
     // entre navegadores o después de cambiar de usuario.
     const response = await fetch(`/api/catalog?session_refresh=${Date.now()}`, { cache: 'no-store' });
-    if (!response.ok) return;
+    if (!response.ok) {
+      showCatalogError();
+      return;
+    }
     const data = await response.json();
     const signature = JSON.stringify((data.products || []).map(p=>[
       p.id,
@@ -602,11 +629,17 @@ async function refreshCatalog() {
       p.stock_quantity,
     ]));
     if (Array.isArray(data.products) && Array.isArray(data.categories) && (data.revision !== loadedRevision || signature !== loadedCatalogSignature)) applyCatalog(data);
-  } catch (_) { /* La copia estática conserva el último catálogo guardado. */ }
+    else if (!Array.isArray(data.products) || !Array.isArray(data.categories)) showCatalogError();
+  } catch (_) {
+    // Si todavía no existe un catálogo válido, deja una salida clara en vez de
+    // mantener la pantalla vacía. Si ya hay productos, conserva la vista actual.
+    showCatalogError();
+  }
   finally { refreshing = false; }
 }
 function loadAll() {
-  applyCatalog(CATALOG);
+  if (Array.isArray(CATALOG?.products) && CATALOG.products.length) applyCatalog(CATALOG);
+  else showCatalogLoading();
   refreshCatalog();
 }
 window.addEventListener('focus', refreshCatalog);
