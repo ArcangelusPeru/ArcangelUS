@@ -3,24 +3,7 @@ import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { randomUUID, createHash } from 'node:crypto';
-import { gzip } from 'node:zlib';
-import { promisify } from 'node:util';
-const compressStatic = promisify(gzip);
-
-async function sendStatic(req,res,bytes,mime){
-  const etag='"'+createHash('sha256').update(bytes).digest('hex')+'"';
-  res.setHeader('Cache-Control','public, max-age=0, must-revalidate');
-  res.setHeader('ETag',etag);
-  res.setHeader('Vary','Accept-Encoding');
-  res.setHeader('Content-Type',mime);
-  if(String(req.headers['if-none-match']||'').split(',').map(v=>v.trim().replace(/^W\//,'')).includes(etag)){res.writeHead(304);return res.end();}
-  const enc=String(req.headers['accept-encoding']||'').split(',').map(v=>v.trim().split(';').map(x=>x.trim()));
-  const acceptsGzip=enc.some(([name,...params])=>name==='gzip'&&!params.some(p=>/^q=0(?:\.0*)?$/.test(p)));
-  if(bytes.length>1024&&/^(text\/|application\/(javascript|json))/.test(mime)&&acceptsGzip){bytes=await compressStatic(bytes);res.setHeader('Content-Encoding','gzip');}
-  res.setHeader('Content-Length',bytes.length);res.writeHead(200);res.end(req.method==='HEAD'?undefined:bytes);
-}
-
+import { randomUUID } from 'node:crypto';
 import { createAdminAccess, launchConfig } from './hosting.mjs';
 import { createMySQLStore, databaseConfig } from './mysql-store.mjs';
 import { downloadBackup, importBackup, uploadPaths } from './backup.mjs';
@@ -197,23 +180,6 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(url.pathname==='/healthz')return send(200,{status:'ok'});
       if(url.pathname.startsWith('/api/')){
         if(req.headers.origin&&!access.sameOrigin(req))throw fail(403,'Origen no permitido.');
-        if(/^\/api\/(admin\/)?advertising(?:\/|$)/.test(url.pathname)){
-          if(!store?.commerce)throw fail(503,'Configura la tienda para usar Publicidad.');
-          const admin=url.pathname.startsWith('/api/admin/'),id=url.pathname.split('/advertising')[1].replace(/^\//,'');
-          if(['GET','HEAD'].includes(req.method)){
-            if(admin)access.require(req);else if(!await store.commerce.userFromToken(customerToken(req,store.catalogId)))throw fail(401,'Inicia sesión para ver la publicidad.');
-            if(!id)return send(200,{items:await store.listAdverts()});
-            if(!/^[a-f0-9-]{36}$/.test(id))throw fail(404,'Imagen no encontrada.');
-            const media=await store.advertMedia(id),image=media?await store.getImage(media):null;if(!image)throw fail(404,'Imagen no encontrada.');
-            if(url.searchParams.has('download'))res.setHeader('Content-Disposition','attachment; filename="publicidad-'+id+'.'+media.split('.').pop()+'"');
-            res.writeHead(200,{'Content-Type':image.mime,'Content-Length':image.bytes.length});return res.end(req.method==='HEAD'?undefined:image.bytes);
-          }
-          if(!admin||req.method!=='POST')throw fail(405,'Método no permitido.');access.checkWrite(req);
-          if(id){if(!/^[a-f0-9-]{36}$/.test(id)||url.searchParams.get('action')!=='remove')throw fail(400,'Solicitud no válida.');await store.removeAdvert(id);return send(200,{ok:true});}
-          const title=(url.searchParams.get('title')||'').trim();if(!title||title.length>160)throw fail(400,'Escribe un título de hasta 160 caracteres.');
-          const bytes=await body(req,10*1024*1024),type=detectImage(bytes);if(!type||!['png','jpg','jpeg','webp','gif'].includes(type[0]))throw fail(400,'Selecciona una imagen JPG, PNG, WebP o GIF.');
-          const imageId=randomUUID(),media='advertising/'+imageId+'.'+type[0];await store.putImage(media,type[1],bytes);await store.addAdvert(imageId,title,media);return send(201,{id:imageId,title});
-        }
         const tutorialPath=url.pathname.replace('/api/admin/tutorials','/api/tutorials');
         if(['GET','HEAD'].includes(req.method)&&(tutorialPath==='/api/tutorials'||tutorialPath.startsWith('/api/tutorials/'))){
           if(!store?.commerce)throw fail(503,'Tutoriales requiere la tienda configurada.');
@@ -232,22 +198,16 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
         if(await routeCommerce(req,res,url,send))return;
         if(req.method==='GET'&&url.pathname==='/api/catalog')return send(200,await publicState(req));
         if(req.method==='GET'&&url.pathname==='/api/admin/session')return send(200,access.status(req));
-        if(req.method==='GET'&&url.pathname==='/api/admin/devices')return send(200,access.devices(req));
         if(req.method==='POST'&&url.pathname==='/api/admin/login'){
           if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'Formato no válido.');
           let input;try{input=JSON.parse((await body(req,4096)).toString());}catch(e){if(e.status)throw e;throw fail(400,'Datos de acceso no válidos.');}
           return send(200,access.login(req,res,input.password));
         }
         if(req.method==='POST'&&url.pathname==='/api/admin/logout')return send(200,access.logout(req,res));
-        if(req.method==='POST'&&url.pathname==='/api/admin/devices/revoke'){
-          if(!req.headers['content-type']?.startsWith('application/json'))throw fail(415,'Formato no válido.');
-          let input;try{input=JSON.parse((await body(req,4096)).toString());}catch(e){if(e.status)throw e;throw fail(400,'Datos no válidos.');}
-          return send(200,access.revokeDevice(req,input.session_id));
-        }
         if(req.method==='GET'&&url.pathname==='/api/admin/state'){const {token}=access.require(req);return send(200,{...await requiredState(),token});}
         if(req.method==='GET'&&url.pathname==='/api/admin/storage'){
           const {token}=access.require(req),saved=await readState();
-          return send(200,{token,kind:store?'mysql':'local',catalogId:store?.catalogId||'local',initialized:!!saved,revision:saved?.revision??null,legacyAvailable:hosted&&await hasLegacy(),backups:store&&url.searchParams.get('summary')!=='1'?await store.listBackups():[]});
+          return send(200,{token,kind:store?'mysql':'local',catalogId:store?.catalogId||'local',initialized:!!saved,revision:saved?.revision??null,legacyAvailable:hosted&&await hasLegacy(),backups:store?await store.listBackups():[]});
         }
         if(req.method==='GET'&&url.pathname==='/api/admin/backup'){
           access.require(req);const revision=url.searchParams.get('revision');
@@ -314,7 +274,11 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(relative==='admin'||relative==='admin/')relative='admin/index.html';
       if(relative==='cuenta'||relative==='cuenta/')relative='cuenta/index.html';
       if(relative.toLowerCase()==='js/catalog.js'){
-        const visible=await publicState(req);res.writeHead(200,{'Content-Type':MIME['.js']});return res.end(req.method==='HEAD'?undefined:script(visible));
+        const visible=await publicState(req);
+        // Este archivo contiene precios y canales según la cookie del cliente.
+        // Nunca debe compartirse entre sesiones mediante un caché intermedio.
+        res.writeHead(200,{'Content-Type':MIME['.js'],'Cache-Control':'private, no-store, max-age=0','Vary':'Cookie'});
+        return res.end(req.method==='HEAD'?undefined:script(visible));
       }
       if(relative==='index.html'&&store&&!await readState()){
         res.writeHead(200,{'Content-Type':MIME['.html']});return res.end(req.method==='HEAD'?undefined:'<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Arcangel US</title><body style="font:18px system-ui;max-width:560px;margin:15vh auto;padding:24px"><h1>Estamos preparando la tienda</h1><p>El catálogo estará disponible cuando termine la configuración.</p></body></html>');
@@ -329,7 +293,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
         if(ext==='.png')try{bytes=await fs.readFile(file.slice(0,-4)+'.webp');ext='.webp';}catch{}
         if(!bytes)throw fail(404,'No encontrado.');
       }
-      await sendStatic(req,res,bytes,MIME[ext]);
+      res.writeHead(200,{'Content-Type':MIME[ext]});res.end(req.method==='HEAD'?undefined:bytes);
     }catch(e){if(!res.headersSent)send(e.status||503,{error:e.status?e.message:'No se pudo acceder al almacenamiento. Los cambios no se han confirmado. Recarga el panel para comprobar su estado.'});else res.destroy();if(!e.status)console.error('[STORAGE_ERROR]',e.code||e.name);}
   });
   if(store?.commerce){let working=false;const timer=setInterval(async()=>{if(working)return;working=true;try{await store.commerce.fazer.orders.tick();}catch{console.error('[FAZER_RECONCILE_FAILED]');}finally{working=false;}},30000);timer.unref();server.on('close',()=>clearInterval(timer));}
