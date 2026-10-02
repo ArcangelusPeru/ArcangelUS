@@ -141,9 +141,13 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
     try{
       const source=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));
       const bundled=validateState(source),current=await readState();
-      if(current&&Number(bundled.revision)>Number(current.revision)){
+      const legacyHosted=current?.products?.length===41&&
+        String(current.settings?.proof_count)==='950'&&
+        current.products.some(p=>p.name==='NETFLIX'&&Number(p.pen)===12)&&
+        !current.products.some(p=>p.name==='Net Caarasco');
+      if(current&&(Number(source.revision)>Number(current.revision)||legacyHosted)){
         await store.save(bundled,Number(current.revision));
-        console.log(`[CATALOG_SYNC] MySQL actualizado de ${current.revision} a ${bundled.revision}.`);
+        console.log(`[CATALOG_SYNC] MySQL actualizado desde la revisión ${current.revision}.`);
       }
     }catch(error){console.error('[CATALOG_SYNC_FAILED]',error.message||error);}
   }
