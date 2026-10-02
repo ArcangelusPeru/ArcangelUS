@@ -134,58 +134,26 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   }
   const readState=async()=>store?store.read():structuredClone(state);
   const requiredState=async()=>{const value=await readState();if(!value)throw fail(503,'El catálogo aún no está configurado. Entra al panel para importar un respaldo o iniciar la tienda.');return withFazerCategories({...value,settings:{...DEFAULT_SETTINGS,...value.settings}});};
-  // GoDaddy puede conservar un catálogo MySQL anterior al que está en el
-  // repositorio. Esta marca aplica el catálogo actual una sola vez; después,
-  // las ediciones del panel vuelven a ser la fuente de verdad.
+  // Recupera una sola vez el catálogo que estaba guardado justo antes de la
+  // migración equivocada del 2 de octubre. La revisión 220 fue respaldada por
+  // MySQL automáticamente antes de reemplazarla. Después de restaurarla, el
+  // panel vuelve a ser la única fuente de verdad para productos y categorías.
   if(store){
     try{
-      const source=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));
-      const release='catalog-2026-10-02';
-      const bundled=validateState({...source,settings:{...DEFAULT_SETTINGS,...source.settings,catalog_release:release}}),current=await readState();
+      const release='restore-catalog-revision-220';
+      const current=await readState();
       if(current&&current.settings?.catalog_release!==release){
-        // No borres referencias usadas por inventario o ventas. Los productos
-        // antiguos que ya no están en el catálogo actual quedan ocultos y se
-        // conservan únicamente para mantener intacto el historial.
-        const ids=new Set(bundled.products.map(p=>String(p.id)));
-        const existing=new Map(current.products.map(p=>[String(p.id),p]));
-        const products=bundled.products.map(product=>{
-          const previous=existing.get(String(product.id));
-          if(!previous)return product;
-          return {...product,
-            checkout_mode:previous.checkout_mode,
-            whatsapp_enabled:previous.whatsapp_enabled,
-            stock_quantity:previous.stock_quantity,
-            out_of_stock:previous.out_of_stock,
-          };
-        });
-        const historical=current.products
-          .filter(p=>!ids.has(String(p.id)))
-          .map(p=>({...p,active:false}));
-        // Las cuentas y ventas históricas pueden usar categorías que ya no
-        // aparecen en el catálogo nuevo. Consérvalas con un identificador
-        // interno único para que la validación no rompa esas referencias.
-        const categorySlugs=new Set(bundled.categories.map(c=>c.slug));
-        const categoryIds=new Set(bundled.categories.map(c=>String(c.id)));
-        const historicalCategories=[];
-        for(const category of current.categories){
-          if(categorySlugs.has(category.slug))continue;
-          let id=String(category.id);
-          if(categoryIds.has(id))id=`legacy-${category.slug}`;
-          for(let suffix=2;categoryIds.has(id);suffix++)id=`legacy-${category.slug}-${suffix}`;
-          categoryIds.add(id);categorySlugs.add(category.slug);
-          historicalCategories.push({...category,id});
-        }
-        const next=validateState({...bundled,
-          products:[...products,...historical],
-          categories:[...bundled.categories,...historicalCategories],
-          settings:{...DEFAULT_SETTINGS,...bundled.settings,...current.settings,catalog_release:release},
+        const snapshot=await store.getBackup(220);
+        if(!snapshot)throw Error('No se encontró el respaldo de la revisión 220.');
+        const next=validateState({...snapshot,
+          settings:{...DEFAULT_SETTINGS,...snapshot.settings,catalog_release:release},
         });
         await store.save(next,Number(current.revision));
-        console.log(`[CATALOG_SYNC] MySQL actualizado desde la revisión ${current.revision} con ${products.length} productos vigentes.`);
+        console.log(`[CATALOG_RESTORE] Revisión 220 restaurada con ${next.products.length} productos.`);
       }
-    }catch(error){console.error('[CATALOG_SYNC_FAILED]',error.message||error);}
+    }catch(error){console.error('[CATALOG_RESTORE_FAILED]',error.message||error);}
   }
-  const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(await requiredState(),role);const visibleCategories=new Set(result.products.map(p=>p.filter));result.categories=result.categories.filter(c=>visibleCategories.has(c.slug)||c.id.startsWith('fazer-'));if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
+  const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(await requiredState(),role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
   // No bloquees el primer pintado esperando MySQL o FazerCards, pero tampoco
   // muestres el catálogo empaquetado de GitHub como si fuera el vigente. La
   // página arranca con una respuesta vacía y /api/catalog carga el catálogo
