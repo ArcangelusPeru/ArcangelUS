@@ -134,6 +134,19 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   }
   const readState=async()=>store?store.read():structuredClone(state);
   const requiredState=async()=>{const value=await readState();if(!value)throw fail(503,'El catálogo aún no está configurado. Entra al panel para importar un respaldo o iniciar la tienda.');return withFazerCategories({...value,settings:{...DEFAULT_SETTINGS,...value.settings}});};
+  // GoDaddy puede conservar un catálogo MySQL anterior al que está en el
+  // repositorio. Sincronízalo una sola vez cuando la revisión del archivo sea
+  // más nueva; después, las ediciones del panel quedan como fuente de verdad.
+  if(store?.commerce){
+    try{
+      const source=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));
+      const bundled=validateState(source),current=await readState();
+      if(current&&Number(bundled.revision)>Number(current.revision)){
+        await store.save(bundled,Number(current.revision));
+        console.log(`[CATALOG_SYNC] MySQL actualizado de ${current.revision} a ${bundled.revision}.`);
+      }
+    }catch(error){console.error('[CATALOG_SYNC_FAILED]',error.message||error);}
+  }
   const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(await requiredState(),role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
   // No bloquees el primer pintado esperando MySQL o FazerCards, pero tampoco
   // muestres el catálogo empaquetado de GitHub como si fuera el vigente. La
