@@ -24,7 +24,7 @@ export const DEFAULT_SETTINGS = {
   footer_contact_message:'¡Hola! Me gustaría crear una plataforma web para mi negocio. ¿Podemos conversar?', show_footer_contact:true,
   all_label:'Todos', all_image:'logo/todos.png', offers_label:'Promos y Ofertas', offers_image:'logo/ofertas.png',
   search_placeholder:'Buscar', buy_label:'Comprar por WhatsApp', yape:'', plin:'', payment_name:'',payment_qr:'',
-  wave_primary:'#ef2c2c',wave_secondary:'#f87171',wave_teal:'#2dd4bf',
+  wave_primary:'#ef2c2c',wave_secondary:'#f87171',wave_teal:'#2dd4bf', catalog_release:'',
 };
 const fallbackImages={streaming:'logo/streaming.png',musica:'logo/musica.png',software:'logo/licenciasysoftware.png','diseño':'logo/diseñoyeducacion.png'};
 const MIME={'.svg':'image/svg+xml','.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.webp':'image/webp','.gif':'image/gif','.woff2':'font/woff2','.ttf':'font/ttf'};
@@ -135,25 +135,38 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   const readState=async()=>store?store.read():structuredClone(state);
   const requiredState=async()=>{const value=await readState();if(!value)throw fail(503,'El catálogo aún no está configurado. Entra al panel para importar un respaldo o iniciar la tienda.');return withFazerCategories({...value,settings:{...DEFAULT_SETTINGS,...value.settings}});};
   // GoDaddy puede conservar un catálogo MySQL anterior al que está en el
-  // repositorio. Sincronízalo una sola vez cuando la revisión del archivo sea
-  // más nueva; después, las ediciones del panel quedan como fuente de verdad.
-  if(store?.commerce){
+  // repositorio. Esta marca aplica el catálogo actual una sola vez; después,
+  // las ediciones del panel vuelven a ser la fuente de verdad.
+  if(store){
     try{
       const source=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));
-      const bundled=validateState(source),current=await readState();
-      const legacyHosted=String(current?.settings?.proof_count)==='950'&&
-        current.products.some(p=>p.name==='NETFLIX'&&Number(p.pen)===12)&&
-        !current.products.some(p=>p.name==='Net Caarasco');
-      if(current&&(Number(source.revision)>Number(current.revision)||legacyHosted)){
+      const release='catalog-2026-10-02';
+      const bundled=validateState({...source,settings:{...DEFAULT_SETTINGS,...source.settings,catalog_release:release}}),current=await readState();
+      if(current&&current.settings?.catalog_release!==release){
         // No borres referencias usadas por inventario o ventas. Los productos
         // antiguos que ya no están en el catálogo actual quedan ocultos y se
         // conservan únicamente para mantener intacto el historial.
         const ids=new Set(bundled.products.map(p=>String(p.id)));
-        const historical=legacyHosted?current.products
+        const existing=new Map(current.products.map(p=>[String(p.id),p]));
+        const products=bundled.products.map(product=>{
+          const previous=existing.get(String(product.id));
+          if(!previous)return product;
+          return {...product,
+            checkout_mode:previous.checkout_mode,
+            whatsapp_enabled:previous.whatsapp_enabled,
+            stock_quantity:previous.stock_quantity,
+            out_of_stock:previous.out_of_stock,
+          };
+        });
+        const historical=current.products
           .filter(p=>!ids.has(String(p.id)))
-          .map(p=>({...p,active:false})):[];
-        await store.save({...bundled,products:[...bundled.products,...historical]},Number(current.revision));
-        console.log(`[CATALOG_SYNC] MySQL actualizado desde la revisión ${current.revision}.`);
+          .map(p=>({...p,active:false}));
+        const next=validateState({...bundled,
+          products:[...products,...historical],
+          settings:{...DEFAULT_SETTINGS,...bundled.settings,...current.settings,catalog_release:release},
+        });
+        await store.save(next,Number(current.revision));
+        console.log(`[CATALOG_SYNC] MySQL actualizado desde la revisión ${current.revision} con ${products.length} productos vigentes.`);
       }
     }catch(error){console.error('[CATALOG_SYNC_FAILED]',error.message||error);}
   }
