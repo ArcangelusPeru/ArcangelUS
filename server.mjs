@@ -135,6 +135,16 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
   const readState=async()=>store?store.read():structuredClone(state);
   const requiredState=async()=>{const value=await readState();if(!value)throw fail(503,'El catálogo aún no está configurado. Entra al panel para importar un respaldo o iniciar la tienda.');return withFazerCategories({...value,settings:{...DEFAULT_SETTINGS,...value.settings}});};
   const publicState=async req=>{const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(await requiredState(),role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
+  // No bloquees el primer pintado de la tienda esperando MySQL o FazerCards.
+  // El navegador actualizará precios, stock y productos digitales mediante
+  // /api/catalog cuando la sesión y la base de datos estén disponibles.
+  let bundledPublicCatalog=null;
+  if (store?.commerce) {
+    try {
+      const bundled=parseCatalog(await fs.readFile(path.join(root,'js/catalog.js'),'utf8'));
+      bundledPublicCatalog=catalogForRole(withFazerCategories({...bundled,settings:{...DEFAULT_SETTINGS,...bundled.settings}}),null);
+    } catch (_) { /* La vista previa podrá usar la consulta normal si no hay respaldo. */ }
+  }
   const legacyFile=path.join(storageRoot,'catalog.json');
   const hasLegacy=()=>fs.access(legacyFile).then(()=>true,()=>false);
   async function getImage(relative){
@@ -274,7 +284,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       if(relative==='admin'||relative==='admin/')relative='admin/index.html';
       if(relative==='cuenta'||relative==='cuenta/')relative='cuenta/index.html';
       if(relative.toLowerCase()==='js/catalog.js'){
-        const visible=await publicState(req);
+        const visible=bundledPublicCatalog||await publicState(req);
         // Este archivo contiene precios y canales según la cookie del cliente.
         // Nunca debe compartirse entre sesiones mediante un caché intermedio.
         res.writeHead(200,{'Content-Type':MIME['.js'],'Cache-Control':'private, no-store, max-age=0','Vary':'Cookie'});
