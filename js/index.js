@@ -581,6 +581,7 @@ function applyCategories(data) {
 let loadedRevision = null;
 let loadedCatalogSignature = null;
 let refreshing = false;
+let refreshQueued = false;
 function applyCatalog(data) {
   shopCategories = data.categories;
   if (activeFilter !== 'all' && activeFilter !== 'ofertas' && activeFilter !== 'favorites' && !data.categories.some(c => c.slug === activeFilter)) activeFilter = 'all';
@@ -608,7 +609,13 @@ function applyCatalog(data) {
   else if (slug && backdrop.classList.contains('open')) closeModal();
 }
 async function refreshCatalog() {
-  if (refreshing || location.protocol === 'file:') return;
+  if (location.protocol === 'file:') return;
+  if (refreshing) {
+    // La sesión puede terminar de validarse mientras esta consulta sigue en
+    // curso. Conserva el nuevo intento para no dejar precios de visitante.
+    refreshQueued = true;
+    return;
+  }
   refreshing = true;
   try {
     // Añadir un nonce evita que un proxy/CDN reutilice el catálogo anónimo
@@ -638,8 +645,23 @@ async function refreshCatalog() {
     // mantener la pantalla vacía. Si ya hay productos, conserva la vista actual.
     showCatalogError();
   }
-  finally { refreshing = false; }
+  finally {
+    refreshing = false;
+    if (refreshQueued) {
+      refreshQueued = false;
+      queueMicrotask(refreshCatalog);
+    }
+  }
 }
+function refreshCatalogForSession() {
+  refreshCatalog();
+  // Dos reintentos breves cubren una respuesta lenta del servidor sin esperar
+  // al intervalo general de actualización del catálogo.
+  setTimeout(refreshCatalog, 1200);
+  setTimeout(refreshCatalog, 3500);
+}
+window.addEventListener('arcangel:session-ready', refreshCatalogForSession);
+if (window.__arcangelSessionAuthenticated) refreshCatalogForSession();
 function loadAll() {
   if (Array.isArray(CATALOG?.products) && CATALOG.products.length) applyCatalog(CATALOG);
   else showCatalogLoading();
