@@ -11,6 +11,7 @@ import { vault } from './commerce-security.mjs';
 import { commerceRouter, customerToken } from './commerce-http.mjs';
 import { createMercadoPago } from './mercado-pago.mjs';
 import { catalogForRole } from './pricing.mjs';
+import { publicFazerProduct } from './fazer-products.mjs';
 
 export const DEFAULT_SETTINGS = {
   name:'Arcangel US', logo:'logo/arcangel-us.png', header_logo:'logo/arcangel-us.png', footer_logo:'logo/arcangel-us.png',
@@ -153,7 +154,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       }
     }catch(error){console.error('[CATALOG_RESTORE_FAILED]',error.message||error);}
   }
-  const publicState=async req=>{const state=await requiredState();const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(state,role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
+  const publicState=async req=>{const state=await requiredState();const digital=store?.commerce?await store.commerce.fazer.products.list():[];const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(state,role);result.products.push(...digital.filter(row=>row.published).map(row=>publicFazerProduct(row,role)));return result;};
   const legacyFile=path.join(storageRoot,'catalog.json');
   const hasLegacy=()=>fs.access(legacyFile).then(()=>true,()=>false);
   async function getImage(relative){
