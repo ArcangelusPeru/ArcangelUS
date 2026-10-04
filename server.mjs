@@ -154,8 +154,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       }
     }catch(error){console.error('[CATALOG_RESTORE_FAILED]',error.message||error);}
   }
-  const catalogStep=async(label,run)=>{try{return await run();}catch(error){console.error('[CATALOG_STEP]',label,error.code||error.name,error.sqlMessage||error.message);throw error;}};
-  const publicState=async req=>{const state=await catalogStep('state',requiredState);const digital=store?.commerce?await catalogStep('digital',()=>store.commerce.fazer.products.list()):[];const user=store?.commerce?await catalogStep('session',()=>store.commerce.userFromToken(customerToken(req,store.catalogId))):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(state,role);result.products.push(...digital.filter(row=>row.published).map(row=>publicFazerProduct(row,role)));return result;};
+  const publicState=async req=>{const state=await requiredState();const digital=store?.commerce?await store.commerce.fazer.products.list():[];const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(state,role);result.products.push(...digital.filter(row=>row.published).map(row=>publicFazerProduct(row,role)));return result;};
   const legacyFile=path.join(storageRoot,'catalog.json');
   const hasLegacy=()=>fs.access(legacyFile).then(()=>true,()=>false);
   async function getImage(relative){
