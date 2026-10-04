@@ -1,6 +1,6 @@
 // Cache Busting: Sistema automático universal con Git Hooks
-let WA = CATALOG.settings?.whatsapp || '51929688960';
-let shopCategories = CATALOG.categories;
+let WA = '51929688960';
+let shopCategories = [];
 
 
 const palettes = {
@@ -618,17 +618,32 @@ async function refreshCatalog() {
   }
   refreshing = true;
   try {
-    // Añadir un nonce evita que un proxy/CDN reutilice el catálogo anónimo
-    // entre navegadores o después de cambiar de usuario.
-    const response = await fetch(`/api/catalog?session_refresh=${Date.now()}`, {
-      cache: 'no-store',
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!response.ok) {
-      showCatalogError();
-      return;
+    // La primera consulta comenzó en <head> para aprovechar el tiempo en que
+    // se descargan los estilos. Después se consulta normalmente con un nonce.
+    const initialRequest = window.__arcangelCatalogRequest;
+    window.__arcangelCatalogRequest = null;
+    let data;
+    if (initialRequest) {
+      const result = await initialRequest;
+      if (!result.ok || !result.data) {
+        showCatalogError();
+        return;
+      }
+      data = result.data;
+    } else {
+      // Añadir un nonce evita que un proxy/CDN reutilice el catálogo anónimo
+      // entre navegadores o después de cambiar de usuario.
+      const response = await fetch(`/api/catalog?session_refresh=${Date.now()}`, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!response.ok) {
+        showCatalogError();
+        return;
+      }
+      data = await response.json();
     }
-    const data = await response.json();
     const signature = JSON.stringify((data.products || []).map(p=>[
       p.id,
       p.pen,
@@ -653,22 +668,12 @@ async function refreshCatalog() {
     }
   }
 }
-function refreshCatalogForSession() {
-  refreshCatalog();
-  // Dos reintentos breves cubren una respuesta lenta del servidor sin esperar
-  // al intervalo general de actualización del catálogo.
-  setTimeout(refreshCatalog, 1200);
-  setTimeout(refreshCatalog, 3500);
-}
-window.addEventListener('arcangel:session-ready', refreshCatalogForSession);
-if (window.__arcangelSessionAuthenticated) refreshCatalogForSession();
 function loadAll() {
-  if (Array.isArray(CATALOG?.products) && CATALOG.products.length) applyCatalog(CATALOG);
-  else showCatalogLoading();
+  showCatalogLoading();
   refreshCatalog();
 }
 window.addEventListener('focus', refreshCatalog);
-setInterval(() => { if (document.visibilityState === 'visible') refreshCatalog(); }, 5000);
+setInterval(() => { if (document.visibilityState === 'visible') refreshCatalog(); }, 15000);
 (function () {
   const heroLogo = document.querySelector('.hero-logo-text');
   const headerLogo = document.querySelector('.logo-mark');
