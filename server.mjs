@@ -153,7 +153,7 @@ export async function createShopServer({root=path.dirname(fileURLToPath(import.m
       }
     }catch(error){console.error('[CATALOG_RESTORE_FAILED]',error.message||error);}
   }
-  const publicState=async req=>{const [state,user]=await Promise.all([requiredState(),store?.commerce?store.commerce.userFromToken(customerToken(req,store.catalogId)):Promise.resolve(null)]);const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(state,role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
+  const publicState=async req=>{const state=await requiredState();const user=store?.commerce?await store.commerce.userFromToken(customerToken(req,store.catalogId)):null;const role=store?.commerce?(user?.role||null):'customer';const result=catalogForRole(state,role);if(store?.commerce)result.products.push(...await store.commerce.fazer.products.public(role));return result;};
   const legacyFile=path.join(storageRoot,'catalog.json');
   const hasLegacy=()=>fs.access(legacyFile).then(()=>true,()=>false);
   async function getImage(relative){
