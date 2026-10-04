@@ -15,6 +15,19 @@
 try { if (localStorage.getItem('arcangel.store.liveMode') === 'on') document.documentElement.dataset.liveMode = 'on'; } catch (_) {}
 </script>
 
+<script>
+// Inicia una sola consulta al catálogo mientras se descargan los estilos.
+// La respuesta se consume al iniciar la tienda y nunca se muestra la base local anterior.
+window.__arcangelCatalogRequest = fetch('/api/catalog?initial=1', {
+  cache: 'no-store',
+  credentials: 'same-origin',
+  signal: AbortSignal.timeout(6000),
+}).then(async response => ({
+  ok: response.ok,
+  data: response.ok ? await response.json() : null,
+})).catch(error => ({ ok: false, error }));
+</script>
+
 <!-- SEO Principal -->
 <title>Arcangel US</title>
 <meta name="description" content="Compra cuentas premium de Netflix, Spotify, Disney+, HBO, Office 365 y más. Entrega inmediata, precios bajos y garantía total. Atención 24/7 por WhatsApp en Perú.">
@@ -1254,12 +1267,11 @@ body:before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;opa
   </div>
 </div>
 
-<script src="js/catalog.js?v=1.11.1"></script>
 <script src="js/shop-settings.js?v=1.11.0"></script>
 <script src="js/waves.js?v=1.11.0"></script>
 <script src="js/commerce.js?v=1.11.4"></script>
 <script src="js/mobile-menu.js?v=1.11.5"></script>
-<script src="js/game-packages.js?v=1"></script><script src="js/index.js?v=1.11.5"></script>
+<script src="js/game-packages.js?v=1"></script><script src="js/index.js?v=1.11.6"></script>
 
 <script>
 // ── LOGO PARTICLES ──
